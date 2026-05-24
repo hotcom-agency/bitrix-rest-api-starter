@@ -1,0 +1,44 @@
+.PHONY: up up-dev down migrate generate-types composer-install shell backup restore setup-init setup-docker setup-local setup-finish
+
+up:
+	docker compose up -d --build --force-recreate
+
+up-dev:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build --force-recreate
+
+down:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+
+migrate:
+	docker compose exec php php local/modules/sprint.migration/tools/migrate.php config
+
+generate-types:
+	docker compose exec php /bin/sh -c "php bitrix/bitrix.php orm:annotate -m all"
+
+composer-install:
+	docker compose exec php /bin/sh -c "composer install"
+
+shell:
+	docker compose exec php bash
+
+backup:
+	mkdir -p backups
+	docker compose exec -T database sh -c 'mariadb-dump -u root -p"$$MARIADB_ROOT_PASSWORD" "$$MARIADB_DATABASE"' > backups/db_$(shell date +%Y%m%d_%H%M%S).sql
+
+restore:
+	docker compose exec -i database mariadb -u root -p"$$MARIADB_ROOT_PASSWORD" "$$MARIADB_DATABASE" < $(FILE)
+
+setup-init:
+	@bash scripts/init.sh
+	
+setup-docker:
+	@chmod +x scripts/*.sh
+	@bash scripts/setup-docker.sh
+
+setup-local:
+	@chmod +x scripts/*.sh
+	@bash scripts/setup-local.sh
+
+setup-finish:
+	@chmod +x scripts/*.sh
+	@bash scripts/post-install.sh

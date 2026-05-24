@@ -1,0 +1,67 @@
+# ─── Environment & Secrets ───
+.env
+.env.*.local
+
+# ─── Uploaded files & Runtime logs ───
+/upload/
+!/upload/.gitkeep
+/local/logs/*.log
+!/local/logs/.gitkeep
+/local/cache/
+/local/tmp/
+/local/stack_cache/
+/local/managed_cache/
+/backups/
+
+# ─── Setup files (root only) ───
+bitrixsetup.php
+restore.php
+bitrixsetup.php
+readme.html
+/bitrix/
+!/bitrix/.gitkeep
+
+# ─── Dependencies ───
+/vendor/
+
+# ─── Docker & Database Runtime Data ───
+/docker/database/data/
+/docker/mailhog/data/
+
+# ─── IDE & OS ───
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*.log
+
+# ─── Bitrix specific ───
+/bitrix/cache/
+/bitrix/managed_cache/
+/bitrix/stack_cache/
+/bitrix/images/
+/bitrix/js/
+/bitrix/tmp/
+/bitrix/tools/cron_events.log
+/bitrix/settings*.php
+/bitrix/.settings*
+/bitrix/backup/
+/bitrix/web.config
+/bitrix/php_interface/dbconn.php
+/bitrix/php_interface/dbconn_old.php
+/bitrix/modules/main/classes/mysql/agent.php
+
+# ─── PHP & Composer ───
+composer.lock
+composer.phar
+*.tgz
+
+# ─── Logs ───
+*.log
+/log/
+logs/
+
+# ─── Temporary files ───
+*.tmp
+*.temp

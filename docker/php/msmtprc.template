@@ -1,0 +1,12 @@
+defaults
+auth           #SMTP_AUTH#
+tls            #SMTP_TLS#
+tls_starttls   #SMTP_TLS_STARTTLS#
+tls_certcheck  #SMTP_TLS_CERTCHECK#
+host           #SMTP_HOST#
+port           #SMTP_PORT#
+from           #SMTP_EMAIL#
+user           #SMTP_USER#
+password       #SMTP_PASSWORD#
+
+account default

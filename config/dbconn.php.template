@@ -1,0 +1,33 @@
+<?php
+$DBHost     = $_ENV['DB_HOST'] ?? 'database';
+$DBLogin    = $_ENV['DB_USER'] ?? 'bitrix';
+$DBPassword = $_ENV['DB_PASSWORD'] ?? 'bitrix';
+$DBName     = $_ENV['DB_NAME'] ?? 'bitrix';
+
+$isDevelopmentMode = getenv('MODE') === 'DEVELOPMENT' || ($_ENV['MODE'] ?? '') === 'DEVELOPMENT';
+
+define("DBPersistent", false);
+define("DBType", "mysql");
+define("DBDebug", (bool)($_ENV['DB_DEBUG'] ?? false));
+define("DBDebugToFile", false);
+
+define("DELAY_DB_CONNECT", true);
+
+define("CACHED_b_file", 3600);
+define("CACHED_b_lang", 3600);
+define("CACHED_b_option", 3600);
+define("CACHED_b_agent", 3600);
+
+define("BX_FILE_PERMISSIONS", 0644);
+define("BX_DIR_PERMISSIONS", 0755);
+@umask(~(BX_FILE_PERMISSIONS | BX_DIR_PERMISSIONS) & 0777);
+
+define("BX_UTF", true);
+define("BX_USE_MYSQLI", true);
+
+define("BX_CRONTAB_SUPPORT", $isDevelopmentMode ? false : true);
+define("BX_COMPRESSION_DISABLED", true);
+define("BX_DISABLE_INDEX_PAGE", true);
+
+define("VM_INSTALL", true);
+define("SHORT_INSTALL", true);

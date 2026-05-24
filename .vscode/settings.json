@@ -1,0 +1,83 @@
+{
+  "prettier.enable": false,
+  "editor.formatOnSave": false,
+  "editor.defaultFormatter": "bmewburn.vscode-intelephense-client",
+  "editor.detectIndentation": false,
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  "php.executablePath": "/usr/local/bin/php",
+  "php.validate.executablePath": "/usr/local/bin/php",
+  "intelephense.environment.phpVersion": "8.4",
+  "intelephense.completion.insertUseDeclaration": true,
+  "intelephense.completion.suggestObjectOperatorStaticMethods": false,
+  "intelephense.files.maxSize": 20000000,
+  "intelephense.files.exclude": [
+    "**/.git/**",
+    "**/.svn/**",
+    "**/.hg/**",
+    "**/CVS/**",
+    "**/.DS_Store/**",
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/vendor/**/{Tests,tests}/**",
+    "**/.history/**",
+    "**/vendor/**/vendor/**",
+    "**/managed_cache/**",
+    "**/bitrix/cache/**",
+    "**/bitrix/managed_cache/**",
+    "**/bitrix/stack_cache/**",
+    "**/bitrix/image_cache/**",
+    "**/bitrix/resize_cache/**",
+    "**/bitrix/backup/**",
+    "**/bitrix/updates/**",
+    "**/bitrix/upgrade/**",
+    "**/bitrix/modules/main/dev/**",
+    "**/upload/**",
+    "**/local/php_interface/logs/**",
+    "**/local/php_interface/migration_template.php"
+  ],
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.git": true,
+    "**/bower_components": true,
+    "**/tmp": true,
+    "**/dist": true,
+    "**/build": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "**/tmp": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/bitrix/cache": true,
+    "**/bitrix/managed_cache": true,
+    "**/bitrix/stack_cache": true,
+    "**/bitrix/images": true,
+    "**/bitrix/js": true,
+    "**/bitrix/tmp": true,
+    "**/upload": true
+  },
+  "makefile.configureOnOpen": true,
+  "workbench.browser.dataStorage": "workspace",
+  "phpstan.memoryLimit": "1G",
+  "phpstan.projectTimeout": 60000,
+  "phpstan.configFile": "phpstan.neon",
+  "phpstan.binPath": "vendor/bin/phpstan",
+  "phpstan.checkValidity": true,
+  "php.debug.executablePath": "/usr/bin/php",
+  "php.suggest.basic": false,
+  "php.validate.enable": false,
+  "QoderCN.cloudModelAutoTriggerDisplayRule": false,
+  "intelephense.phpdoc.useFullyQualifiedNames": false,
+  "terminal.integrated.profiles.linux": {
+    "bash": {
+      "path": "/bin/bash"
+    }
+  },
+  "terminal.integrated.profiles.osx": {
+    "zsh": {
+      "path": "/bin/zsh"
+    }
+  }
+}

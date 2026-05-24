@@ -1,0 +1,15 @@
+{
+
+  "recommendations": [
+    "neilbrayfield.php-docblocker",
+    "mehedidracula.php-namespace-resolver",
+    "sanderronde.phpstan-vscode",
+    "bmewburn.vscode-intelephense-client",
+    "mrmlnc.vscode-php-extension-pack",
+    "felixfbecker.php-debug",
+    "brapifra.php-function-parameters-highlight",
+    "formulahendry.auto-rename-tag",
+    "ms-vscode.makefile-tools"
+  ],
+  "unwantedRecommendations": []
+}

@@ -1,0 +1,93 @@
+<?php
+$docRoot = $_SERVER['DOCUMENT_ROOT'] ?? dirname(__FILE__) . '/..';
+$isDevelopmentMode = getenv('MODE') === 'DEVELOPMENT' || ($_ENV['MODE'] ?? '') === 'DEVELOPMENT';
+
+return [
+  'utf_mode' => [
+    'value' => true,
+    'readonly' => true,
+  ],
+  'cache_flags' => [
+    'value' => [
+      'config_options' => 3600,
+      'site_domain' => 3600,
+    ],
+    'readonly' => false,
+  ],
+  'cookies' => [
+    'value' => [
+      'secure' => (bool)(getenv('SECURE_COOKIES') ?: false),
+      'http_only' => true,
+    ],
+    'readonly' => false,
+  ],
+  'exception_handling' => [
+    'value' => [
+      'debug' => $isDevelopmentMode,
+      'handled_errors_types' => 4437,
+      'exception_errors_types' => 389,
+      'ignore_silence' => false,
+      'assertion_throws_exception' => true,
+      'log' => [
+        'settings' => [
+          'file' => $docRoot . '/local/logs/php_errors.log',
+          'log_size' => 1048576,
+        ],
+      ],
+    ],
+    'readonly' => false,
+  ],
+  'routing' => [
+    'value' => ['config' => ['api.php']],
+  ],
+  'crypto' => [
+    'value' => [
+      'crypto_key' => getenv('BITRIX_CRYPTO_KEY') ?: 'kysbwdz8xlpynkrvtren5vs4nz5vns84',
+    ],
+    'readonly' => true,
+  ],
+  'composer' => [
+    'value' => ['config_path' => $docRoot . '/composer.json'],
+  ],
+  'connections' => [
+    'value' => [
+      'default' => [
+        'className' => '\\Bitrix\\Main\\DB\\MysqliConnection',
+        'host' => getenv('DB_HOST') ?: '127.0.0.1',
+        'database' => getenv('DB_NAME') ?: 'bitrix',
+        'login' => getenv('DB_USER') ?: 'bitrix',
+        'password' => getenv('DB_PASSWORD') ?: '',
+        'options' => 2,
+      ],
+    ],
+    'readonly' => true,
+  ],
+  'cache' => [
+    'value' => [
+      'type' => [
+        'class_name' => '\Bitrix\Main\Data\CacheEngineRedis',
+        'extension' => 'redis',
+      ],
+      'redis' => [
+        'host' => getenv('REDIS_HOST') ?: 'redis',
+        'port' => (int)(getenv('REDIS_PORT') ?: 6379),
+        'dbIndex' => (int)(getenv('REDIS_DB') ?: 0),
+      ],
+      'sid' => (getenv('BITRIX_CRYPTO_KEY') ?: 'default_sid') . "#hc"
+    ],
+    'readonly' => false,
+  ],
+  'session' => [
+    'value' => [
+      'type' => [
+        'class_name' => '\Bitrix\Main\Session\Storage\Redis',
+      ],
+      'redis' => [
+        'host' => getenv('REDIS_HOST') ?: 'redis',
+        'port' => (int)(getenv('REDIS_PORT') ?: 6379),
+        'dbIndex' => (int)(getenv('REDIS_SESSION_DB') ?: 1),
+      ],
+    ],
+    'readonly' => false,
+  ]
+];

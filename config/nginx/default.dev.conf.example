@@ -1,0 +1,153 @@
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=100r/s;
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name _;
+    root /var/www/html;
+    index index.php;
+
+    access_log /var/log/nginx/access.log combined;
+    error_log /var/log/nginx/error.log debug;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+
+    # CORS (Dev: раскрываем заголовки отладки)
+    add_header 'Access-Control-Allow-Origin' $http_origin always;
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+    add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With, Accept, X-Debug-Token' always;
+    add_header 'Access-Control-Expose-Headers' 'X-Debug-Token, X-Debug-Link' always;
+    add_header 'Access-Control-Max-Age' 86400 always;
+    add_header 'Vary' 'Origin' always;
+
+    # Gzip (лёгкое сжатие для экономии CPU в dev)
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_comp_level 3;
+    gzip_types application/json application/javascript text/css text/xml application/xml image/svg+xml;
+
+    client_max_body_size 64m;
+
+    # OPTIONS preflight
+    error_page 405 =204 @empty_response;
+    location @empty_response {
+        add_header 'Content-Type' 'text/plain charset=UTF-8';
+        add_header 'Content-Length' 0;
+        return 204;
+    }
+
+    # 1. Блокировка системных папок
+    location ~* ^/bitrix/(cache|sessions|tmp|stack_cache|managed_cache)/ {
+        deny all; return 404;
+    }
+
+    # 2. Запрет исполнения PHP в служебных директориях
+    location ~ ^/(upload|vendor|config|local/logs|docker)/.*\.(php|phtml|php5|php7|php8|phar|pl|py|jsp|asp|sh|cgi)$ {
+        deny all; return 403;
+    }
+
+    # 3. PHP в папке /bitrix/ (админка, модули, системные скрипты)
+    # Должен идти ДО общего location ~ \.php$, иначе Nginx проигнорирует этот блок
+    location ~* /bitrix.+\.php$ {
+        try_files $uri @bitrixadm;
+        limit_except GET POST PUT DELETE PATCH OPTIONS { deny all; }
+        limit_req zone=api_limit burst=50 nodelay;
+        limit_req_status 429;
+        limit_req_log_level warn;
+
+        fastcgi_pass php:9000;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param SCRIPT_NAME $fastcgi_script_name;
+        fastcgi_param REQUEST_URI $request_uri;
+        include fastcgi_params;
+
+        fastcgi_read_timeout 600;
+        fastcgi_send_timeout 600;
+        fastcgi_connect_timeout 60s;
+        fastcgi_buffer_size 32k;
+        fastcgi_buffers 8 32k;
+        fastcgi_busy_buffers_size 48k;
+    }
+
+    # 4. Обработка ВСЕХ ОСТАЛЬНЫХ PHP файлов
+    location ~ \.php$ {
+        try_files $uri @bitrix;
+        limit_except GET POST PUT DELETE PATCH OPTIONS { deny all; }
+        limit_req zone=api_limit burst=50 nodelay;
+        limit_req_status 429;
+        limit_req_log_level warn;
+
+        fastcgi_pass php:9000;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param SCRIPT_NAME $fastcgi_script_name;
+        fastcgi_param REQUEST_URI $request_uri;
+        include fastcgi_params;
+
+        fastcgi_read_timeout 300s;
+        fastcgi_send_timeout 300s;
+        fastcgi_connect_timeout 60s;
+        fastcgi_buffer_size 32k;
+        fastcgi_buffers 8 32k;
+        fastcgi_busy_buffers_size 48k;
+    }
+
+    # 5. Загрузки
+    location /upload/ {
+        limit_except GET HEAD OPTIONS { deny all; }
+        expires 1d;
+        add_header Cache-Control "public, no-cache";
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
+    # 6. Статика (короткий кеш для dev)
+    location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff2?|ttf|eot|otf|webp)$ {
+        limit_except GET HEAD OPTIONS { deny all; }
+        expires 1h;
+        add_header Cache-Control "public, no-cache";
+        access_log off;
+        log_not_found off;
+    }
+
+    # 7. Все остальные запросы (включая /api/) → D7 Router
+    location / {
+        try_files $uri $uri/ @bitrix;
+        limit_except GET POST PUT DELETE PATCH OPTIONS { deny all; }
+        limit_req zone=api_limit burst=50 nodelay;
+        limit_req_status 429;
+        limit_req_log_level warn;
+    }
+
+    # 8. Точка входа D7 Router
+    location @bitrix {
+        fastcgi_pass php:9000;
+        fastcgi_param SCRIPT_FILENAME $document_root/bitrix/routing_index.php;
+        fastcgi_param SCRIPT_NAME /bitrix/routing_index.php;
+        fastcgi_param REQUEST_URI $request_uri;
+        fastcgi_param QUERY_STRING $query_string;
+        include fastcgi_params;
+
+        fastcgi_read_timeout 300s;
+        fastcgi_send_timeout 300s;
+        fastcgi_connect_timeout 60s;
+    }
+
+    # 9. Фоллбэк для админки
+    location @bitrixadm {
+        fastcgi_pass php:9000;
+        fastcgi_param SCRIPT_FILENAME $document_root/bitrix/admin/404.php;
+        fastcgi_param SCRIPT_NAME /bitrix/admin/404.php;
+        fastcgi_param REQUEST_URI $request_uri;
+        include fastcgi_params;
+
+        fastcgi_read_timeout 600;
+        fastcgi_send_timeout 600;
+        fastcgi_connect_timeout 60s;
+    }
+}

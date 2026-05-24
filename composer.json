@@ -1,0 +1,45 @@
+{
+  "name": "hotcom/bitrix-app",
+  "description": "Bitrix application",
+  "type": "project",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.2",
+    "ext-curl": "*",
+    "ext-json": "*",
+    "ext-mbstring": "*",
+    "ext-openssl": "*",
+    "composer/installers": "^2.0",
+    "andreyryabin/sprint.migration": "^5.0",
+    "symfony/console": "^6.4"
+  },
+  "require-dev": {
+    "phpstan/phpstan": "^1.10",
+    "phpstan/phpstan-deprecation-rules": "^1.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "Hotcom\\": "local/app/"
+    }
+  },
+  "config": {
+    "allow-plugins": {
+      "composer/installers": true,
+      "phpstan/extension-installer": true
+    },
+    "sort-packages": true,
+    "optimize-autoloader": true,
+    "platform": {
+      "php": "8.2"
+    }
+  },
+  "extra": {
+    "installer-paths": {
+      "local/modules/{$name}/": [
+        "type:bitrix-module"
+      ]
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}

@@ -1,0 +1,218 @@
+services:
+  nginx:
+    build:
+      context: ./docker/nginx
+      dockerfile: Dockerfile
+    container_name: bitrix_nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html:cached
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - nginx_cache:/var/cache/nginx:rw
+    depends_on:
+      php:
+        condition: service_healthy
+    networks:
+      - bx_local_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "nginx -t && pgrep -f 'nginx: master'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+    labels:
+      org.label-schema.group: "app"
+      org.label-schema.project: "bitrix"
+      org.label-schema.mode: "production"
+
+  php:
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile
+      args:
+        INSTALL_XDEBUG: "0"
+    container_name: bitrix_php
+    volumes:
+      - .:/var/www/html:cached
+      - ./docker/php/php.ini:/usr/local/etc/php/conf.d/bitrix.ini:ro
+      - ./docker/php/www.conf:/usr/local/etc/php-fpm.d/www.conf:ro
+      - composer_cache:/tmp/composer
+      - ./backups:/var/www/html/backups:rw
+    env_file: .env
+    environment:
+      - DB_HOST=${DB_HOST:-database}
+      - DB_NAME=${DB_NAME:-bitrix}
+      - DB_USER=${DB_USER:-bitrix}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - BITRIX_CRYPTO_KEY=${BITRIX_CRYPTO_KEY}
+      - BITRIX_API_TOKEN=${BITRIX_API_TOKEN}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_EMAIL=${SMTP_EMAIL}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_AUTH=${SMTP_AUTH:-on}
+      - SMTP_TLS=${SMTP_TLS:-on}
+      - SMTP_TLS_STARTTLS=${SMTP_TLS_STARTTLS:-on}
+      - SMTP_TLS_CERTCHECK=${SMTP_TLS_CERTCHECK:-off}
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - bx_local_net
+    extra_hosts:
+      - "localhost:host-gateway"
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f php-fpm >/dev/null && php -r \"exit(extension_loaded('mysqli') && extension_loaded('pdo_mysql') ? 0 : 1);\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    labels:
+      org.label-schema.group: "app"
+      org.label-schema.project: "bitrix"
+      org.label-schema.mode: "production"
+
+  database:
+    build:
+      context: ./docker/database
+      dockerfile: Dockerfile
+    container_name: bitrix_database
+    environment:
+      - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${DB_NAME:-bitrix}
+      - MARIADB_USER=${DB_USER:-bitrix}
+      - MARIADB_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./docker/database/data:/var/lib/mysql:rw
+    networks:
+      - bx_local_net
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -u root -p$$MARIADB_ROOT_PASSWORD || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    labels:
+      org.label-schema.group: "app"
+      org.label-schema.project: "bitrix"
+      org.label-schema.mode: "production"
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: bitrix_redis
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - bx_local_net
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    labels:
+      org.label-schema.group: "app"
+      org.label-schema.project: "bitrix"
+      org.label-schema.mode: "production"
+
+  ofelia:
+    image: mcuadros/ofelia:0.3.18
+    container_name: bitrix_ofelia
+    command: ["daemon", "--docker"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - php
+    networks:
+      - bx_local_net
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+        reservations:
+          memory: 32M
+    labels:
+      org.label-schema.group: "app"
+      org.label-schema.project: "bitrix"
+      org.label-schema.mode: "production"
+      ofelia.job-exec.backup-bitrix.container: "bitrix_php"
+      ofelia.job-exec.backup-bitrix.schedule: "0 0 3 * * *"
+      ofelia.job-exec.backup-bitrix.command: 'sh -c "cd /var/www/html && mariadb-dump --ssl=0 -h $$DB_HOST -u $$DB_USER -p$$DB_PASSWORD $$DB_NAME > dump.sql && tar --exclude=''upload/tmp'' -czf /var/www/html/backups/backup_$$(date +\\%Y-\\%m-\\%d_\\%H\\%M\\%S).tar.gz upload dump.sql && rm -f dump.sql && find /var/www/html/backups -name ''*.tar.gz'' -mtime +10 -type f -delete"'
+      ofelia.job-exec.bitrix-agent.container: "bitrix_php"
+      ofelia.job-exec.bitrix-agent.schedule: "0 */1 * * * *"
+      ofelia.job-exec.bitrix-agent.command: sh -c "php -f /var/www/html/bitrix/modules/main/tools/cron_events.php"
+      ofelia.job-exec.rotate-logs.container: "bitrix_php"
+      ofelia.job-exec.rotate-logs.schedule: "0 15 3 * * *"
+      ofelia.job-exec.rotate-logs.command: "find /var/www/html/bitrix/logs -name '*.log*' -mtime +7 -delete && find /var/www/html/local/logs -name '*.log*' -mtime +7 -delete"
+
+volumes:
+  redis_data:
+    driver: local
+  composer_cache:
+    driver: local
+  nginx_cache:
+    driver: local
+
+networks:
+  bx_local_net:
+    driver: bridge
