@@ -27,7 +27,7 @@ class Image
     $img = CFile::ResizeImageGet(
       $id,
       array("width" => $width, "height" => $height),
-      ($crop ? 1 : 2), // 1 — EXACT, 2 — PROPORTIONAL_ALT
+      ($crop ? 2 : 1),
       true,
       false,
       false,
