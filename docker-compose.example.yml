@@ -17,8 +17,8 @@ services:
       - bx_local_net
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "nginx -t && pgrep -f 'nginx: master'"]
-      interval: 30s
+      test: ["CMD-SHELL", "kill -0 $(cat /var/run/nginx.pid) 2>/dev/null || exit 1"]
+      interval: 15s
       timeout: 5s
       retries: 3
       start_period: 10s
