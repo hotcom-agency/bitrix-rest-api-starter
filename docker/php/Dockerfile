@@ -1,7 +1,7 @@
 ARG PHP_VERSION=8.4
 
-# Stage 1: Build
-FROM php:${PHP_VERSION}-fpm-alpine AS builder
+# Build
+FROM php:${PHP_VERSION}-fpm-alpine AS build-stage
 ARG PHP_VERSION
 
 RUN apk add --no-cache --virtual .build-deps \
@@ -9,15 +9,16 @@ RUN apk add --no-cache --virtual .build-deps \
     linux-headers \
     zlib-dev libjpeg-turbo-dev libpng-dev libwebp-dev freetype-dev \
     libzip-dev icu-dev libxml2-dev oniguruma-dev libxslt-dev libpq-dev gmp-dev \
+    imagemagick-dev \
 && docker-php-ext-configure gd --with-jpeg --with-freetype --with-webp \
 && docker-php-ext-install -j$(nproc) \
     mysqli pdo_mysql pdo_pgsql gd zip intl xsl opcache bcmath pcntl sockets gmp \
-&& pecl install -o -f redis \
-&& docker-php-ext-enable redis \
+&& pecl install -o -f redis imagick \
+&& docker-php-ext-enable redis imagick \
 && apk del .build-deps \
 && rm -rf /tmp/pear /var/cache/apk/*
 
-# Stage 2: Runtime
+# Runtime
 FROM php:${PHP_VERSION}-fpm-alpine
 ARG PHP_VERSION
 
@@ -28,10 +29,12 @@ RUN apk add --no-cache \
     gmp \
     tzdata msmtp ca-certificates \
     mariadb-client \
+    pngquant \
+    imagemagick \
 && rm -rf /var/cache/apk/*
 
-COPY --from=builder /usr/local/lib/php/extensions/ /usr/local/lib/php/extensions/
-COPY --from=builder /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
+COPY --from=build-stage /usr/local/lib/php/extensions/ /usr/local/lib/php/extensions/
+COPY --from=build-stage /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
 COPY --from=composer:2.8.0 /usr/bin/composer /usr/local/bin/composer
 
 ARG TZ=Europe/Moscow

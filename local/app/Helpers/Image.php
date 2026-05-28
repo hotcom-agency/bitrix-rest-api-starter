@@ -3,6 +3,7 @@
 namespace Hotcom\Helpers;
 
 use CFile;
+use Imagick;
 
 /**
  * Помощник для обработки, масштабирования и конвертации изображений
@@ -11,12 +12,15 @@ use CFile;
  */
 class Image
 {
+  /** @var array<string, array> Кэш результатов внутри текущего хит-запроса */
+  private static array $cache = [];
+
   /**
    * Масштабирование и оптимизация изображения с генерацией WebP-копии
    * 
    * @param int|string|null $id Идентификатор файла в Битриксе
    * @param int $width Максимальная ширина
-   * @param int $height Максимальная высота
+   * @param int $height Максимальная высота (по умолчанию избыточна для авторасчета)
    * @param bool $crop Флаг жесткой обрезки по заданным размерам
    * @return array{url: string, url_webp: string|false, width: int, height: int}|null
    */
@@ -24,23 +28,50 @@ class Image
   {
     if (!$id) return null;
 
+    $key = "{$id}_{$width}_{$height}_" . ($crop ? 'c' : 'f');
+    if (isset(self::$cache[$key])) return self::$cache[$key];
+
+    $file = CFile::GetFileArray($id);
+    if (!$file) return null;
+
+    $ext = strtolower(pathinfo((string)$file['SRC'], PATHINFO_EXTENSION));
+
+    $resizeType = $crop ? 2 : 1;
+    $jpgQuality = ($ext === 'png') ? false : 80;
+
     $img = CFile::ResizeImageGet(
-      $id,
-      array("width" => $width, "height" => $height),
-      ($crop ? 2 : 1),
-      true,
+      $file,
+      ['width' => $width, 'height' => $height],
+      $resizeType,
       false,
       false,
-      80
+      false,
+      $jpgQuality
     );
 
     if (!$img) return null;
 
-    $imgWebp = self::makeWebp((string)$img['src']);
+    $src = (string)$img['src'];
+    $path = $_SERVER['DOCUMENT_ROOT'] . $src;
 
-    return [
-      'url' => (string)$img['src'],
-      'url_webp' => $imgWebp,
+    if ($ext === 'png' && file_exists($path) && filesize($path) > 500_000) {
+      $testImg = @imagecreatefrompng($path);
+      if ($testImg) {
+        $isTrueColor = imageistruecolor($testImg);
+        imagedestroy($testImg);
+
+        if ($isTrueColor === true) {
+          self::compressPng($src);
+        }
+      }
+    }
+
+    // Генерация WebP через Imagick/GD
+    $webp = self::makeWebp($src);
+
+    return self::$cache[$key] = [
+      'url' => $src,
+      'url_webp' => $webp,
       'width' => (int)$img['width'],
       'height' => (int)$img['height']
     ];
@@ -65,66 +96,100 @@ class Image
   }
 
   /**
-   * Создание и сохранение копии графического файла в формате WebP
+   * Оптимизация PNG файла через консольную утилиту pngquant
+   * 
+   * @param string $srcPath Относительный путь к файлу изображения
+   * @return void
+   */
+  private static function compressPng(string $srcPath): void
+  {
+    $fullPath = $_SERVER['DOCUMENT_ROOT'] . $srcPath;
+
+    if (strtolower(pathinfo($fullPath, PATHINFO_EXTENSION)) !== 'png' || !file_exists($fullPath)) {
+      return;
+    }
+
+    $command = "pngquant --force --quality 65-80 --ext .png " . escapeshellarg($fullPath) . " 2>&1";
+    exec($command);
+  }
+
+  /**
+   * Создание и сохранение копии графического файла в формате WebP через Imagick/GD
    * 
    * @param string|null $src Относительный путь к исходному файлу
    * @param bool $rewrite Флаг принудительной перезаписи существующего файла
    * @return string|false Путь к созданному файлу или false при ошибке
    */
-  public static function makeWebp(?string $src, bool $rewrite = false)
+  public static function makeWebp(?string $src, bool $rewrite = false): string|false
   {
-    if ($src && function_exists('imagewebp')) {
-      $newImgPath = str_ireplace(array('.jpg', '.jpeg', '.gif', '.png'), '.webp', $src);
-      $fullPath = $_SERVER['DOCUMENT_ROOT'] . $src;
-      $fullNewPath = $_SERVER['DOCUMENT_ROOT'] . $newImgPath;
+    if (!$src) return false;
 
-      if (!file_exists($fullNewPath) || $rewrite) {
-        if (!file_exists($fullPath)) return false;
+    $webp = preg_replace('/\.[^.]+$/', '.webp', $src);
+    if ($webp === null) return false;
 
-        $info = getimagesize($fullPath);
-        if ($info !== false && ($type = $info[2])) {
-          $newImg = null;
-          switch ($type) {
-            case IMAGETYPE_JPEG:
-              $newImg = imagecreatefromjpeg($fullPath);
-              break;
-            case IMAGETYPE_GIF:
-              $newImg = imagecreatefromgif($fullPath);
-              break;
-            case IMAGETYPE_PNG:
-              $newImg = imagecreatefrompng($fullPath);
-              if ($newImg) {
-                imagepalettetotruecolor($newImg);
-                imagealphablending($newImg, true);
-                imagesavealpha($newImg, true);
-              }
-              break;
-          }
+    $root = $_SERVER['DOCUMENT_ROOT'];
+    $full = $root . $src;
+    $fullWebp = $root . $webp;
 
-          if ($newImg) {
-            imagewebp($newImg, $fullNewPath, 80);
-            imagedestroy($newImg);
-          }
+    if (file_exists($fullWebp) && !$rewrite) return $webp;
+    if (!file_exists($full)) return false;
+
+    // Попытка конвертации через Imagick
+    if (class_exists(Imagick::class) && in_array('WEBP', Imagick::queryFormats(), true)) {
+      try {
+        $im = new Imagick($full);
+
+        /** @var Imagick $im */
+        $im->setImageFormat('webp');
+        $im->setImageCompressionQuality(80);
+        $im->stripImage();
+
+        if ($im->writeImage($fullWebp)) {
+          $im->clear();
+          $im->destroy();
+          return $webp;
         }
-      }
-
-      if (file_exists($fullNewPath)) {
-        return $newImgPath;
+      } catch (\Throwable) {
+        // Фоллбек на GD при любой ошибке Imagick
       }
     }
 
-    return false;
+    // Фоллбек на встроенную библиотеку GD
+    if (!function_exists('imagewebp')) return false;
+    $info = @getimagesize($full);
+    if (!$info) return false;
+
+    $type = $info[2];
+    $img = match ($type) {
+      IMAGETYPE_JPEG => @imagecreatefromjpeg($full),
+      IMAGETYPE_GIF  => @imagecreatefromgif($full),
+      IMAGETYPE_PNG  => @imagecreatefrompng($full),
+      default => null
+    };
+
+    if (!$img) return false;
+
+    if ($type === IMAGETYPE_PNG) {
+      @imagepalettetotruecolor($img);
+      @imagealphablending($img, true);
+      @imagesavealpha($img, true);
+    }
+
+    @imagewebp($img, $fullWebp, 80);
+    imagedestroy($img);
+
+    return file_exists($fullWebp) ? $webp : false;
   }
 
   /**
    * Обработка графических файлов через механизм агентов Битрикса в фоновом режиме
    * 
    * @param int $fileId Идентификатор файла в Битриксе
-   * @return null
+   * @return string
    */
-  public static function getThumbsAgent(int $fileId): null
+  public static function getThumbsAgent(int $fileId): string
   {
     self::getThumbs($fileId);
-    return null;
+    return "";
   }
 }
