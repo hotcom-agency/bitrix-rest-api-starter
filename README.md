@@ -79,7 +79,8 @@ make up-dev  # development (xdebug / mailpit / logs)
 ## Установка без Docker
 
 **Требования:**
-- PHP 8.4+ с расширениями: `mysqli`, `pdo_mysql`, `gd`, `zip`, `intl`, `xsl`, `opcache`, `bcmath`, `pcntl`, `sockets`, `gmp`, `redis`
+- PHP 8.4+ с расширениями: `mysqli`, `pdo_mysql`, `gd` (с jpeg, freetype, webp), `imagick`, `zip`, `intl`, `xsl`, `opcache`, `bcmath`, `pcntl`, `sockets`, `gmp`, `redis`
+- Системные утилиты Linux: `pngquant`, `imagemagick`
 - Composer 2.x
 - MariaDB 10.11+ или MySQL 8+
 - Redis 6+
