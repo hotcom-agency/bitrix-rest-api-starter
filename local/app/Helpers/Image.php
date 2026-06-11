@@ -43,7 +43,7 @@ class Image
       $file,
       ['width' => $width, 'height' => $height],
       $resizeType,
-      false,
+      true,
       false,
       false,
       $jpgQuality
