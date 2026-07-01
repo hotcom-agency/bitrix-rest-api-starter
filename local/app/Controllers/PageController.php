@@ -4,6 +4,7 @@ namespace Hotcom\Controllers;
 
 use Hotcom\Controllers\ApiController;
 use Hotcom\Services\PageService;
+use Hotcom\Helpers\ApiCache;
 
 /**
  * Контроллер для управления страницами сайта
@@ -20,7 +21,7 @@ class PageController extends ApiController
   public function __construct()
   {
     parent::__construct();
-    $this->pageService = new PageService;
+    $this->pageService = new PageService(new ApiCache());
   }
 
   /**
@@ -31,7 +32,9 @@ class PageController extends ApiController
    */
   public function show(string $slug): never
   {
-    $result = $this->pageService->find($slug);
+    $propertyId = $this->request->get('property_id');
+
+    $result = $this->pageService->find($slug, $propertyId);
 
     if ($result) {
       $this->apiResponse($result);

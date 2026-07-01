@@ -4,6 +4,7 @@ namespace Hotcom\Services;
 
 use Hotcom\Helpers\Image;
 use Hotcom\Helpers\Bitrix;
+use Hotcom\Helpers\ApiCache;
 use Bitrix\Main\Loader;
 use Bitrix\Main\SystemException;
 
@@ -12,8 +13,10 @@ use Bitrix\Main\SystemException;
  * 
  * @package Hotcom\Services
  */
-class PageService
+class PageService extends AbstractService
 {
+  protected string $iblockCode = 'page_dynamic_code';
+
   /**
    * Текущий объект HTTP-запроса Битрикса
    * 
@@ -24,9 +27,10 @@ class PageService
   /**
    * Инициализация сервиса и сохранение глобального объекта запроса
    */
-  public function __construct()
+  public function __construct(ApiCache $apiCache)
   {
     $this->request = \Bitrix\Main\Context::getCurrent()->getRequest();
+    parent::__construct($apiCache);
   }
 
   /**
@@ -45,10 +49,19 @@ class PageService
 
     $sectionCode = 'page-' . (!empty($property_id) ? 'property-' : null) . $slug;
 
-    $sectionData = \Bitrix\Iblock\SectionTable::getList([
-      'select' => ['ID', 'IBLOCK_ID'],
-      'filter' => ['CODE' => $sectionCode]
-    ])->fetch();
+    $sectionData = $this->apiCache->get(
+      key: $this->buildCacheKey('meta', $sectionCode),
+      callback: function () use ($sectionCode) {
+        $data = \Bitrix\Iblock\SectionTable::getList([
+          'select' => ['ID', 'IBLOCK_ID'],
+          'filter' => ['=CODE' => $sectionCode]
+        ])->fetch();
+
+        return $data ?: null;
+      },
+      tags: ['section_meta'],
+      ttl: 86400
+    );
 
     if (!$sectionData) {
       return null;
@@ -57,74 +70,84 @@ class PageService
     $iblockId = (int)$sectionData['IBLOCK_ID'];
     $sectionId = (int)$sectionData['ID'];
 
-    $entity = \Bitrix\Iblock\Iblock::wakeUp($iblockId)->getEntityDataClass();
+    $this->iblockId = $iblockId;
+    $this->iblockCode = $sectionCode;
 
-    // Получение данных раздела инфоблока
-    $section = \Bitrix\Iblock\Model\Section::compileEntityByIblock($iblockId)::getList(array(
-      'select' => ['ID', 'CODE', 'PICTURE', 'DESCRIPTION', 'UF_*'],
-      'filter' => ['ID' => $sectionId, 'ACTIVE' => 'Y'],
-    ))->fetch();
+    $cacheKey = $this->buildCacheKey('find', $sectionCode);
+    $cacheTags = $this->getCacheTags(['section_' . $sectionCode]);
 
-    if (!$section) {
-      return null;
-    }
+    return $this->apiCache->get(
+      key: $cacheKey,
+      callback: function () use ($iblockId, $sectionId) {
+        $entity = \Bitrix\Iblock\Iblock::wakeUp($iblockId)->getEntityDataClass();
 
-    $sectionUf = \Bitrix\Main\UserFieldTable::getList(array(
-      'filter' => ['ENTITY_ID' => 'IBLOCK_' . $iblockId . '_SECTION'],
-      'select' => ['ID', 'FIELD_NAME', 'SETTINGS', 'MULTIPLE', 'USER_TYPE_ID']
-    ))->fetchAll();
+        // Получение данных раздела инфоблока
+        $section = \Bitrix\Iblock\Model\Section::compileEntityByIblock($iblockId)::getList(array(
+          'select' => ['ID', 'CODE', 'PICTURE', 'DESCRIPTION', 'UF_*'],
+          'filter' => ['ID' => $sectionId, 'ACTIVE' => 'Y'],
+        ))->fetch();
 
-    $sectionProps = Bitrix::sectionUfFormat($section, $sectionUf);
+        if (!$section) {
+          return null;
+        }
 
-    // Получение списка связанных элементов раздела
-    $elements = [];
-    if ($entity) {
-      $elementsDbQuery = $entity::getList(array(
-        'filter' => array('IBLOCK_ID' => $iblockId, 'ACTIVE' => 'Y'),
-        'order' => array('SORT' => 'ASC')
-      ));
+        $sectionUf = \Bitrix\Main\UserFieldTable::getList(array(
+          'filter' => ['ENTITY_ID' => 'IBLOCK_' . $iblockId . '_SECTION'],
+          'select' => ['ID', 'FIELD_NAME', 'SETTINGS', 'MULTIPLE', 'USER_TYPE_ID']
+        ))->fetchAll();
 
-      $elementsArray = $elementsDbQuery->fetchAll();
+        $sectionProps = Bitrix::sectionUfFormat($section, $sectionUf);
 
-      $elementIds = [];
-      foreach ($elementsArray as $element) {
-        $elementIds[] = (int)$element['ID'];
-      }
+        // Получение списка связанных элементов раздела
+        $elements = [];
+        if ($entity) {
+          $elementsDbQuery = $entity::getList(array(
+            'filter' => array('IBLOCK_ID' => $iblockId, 'ACTIVE' => 'Y'),
+            'order' => array('SORT' => 'ASC')
+          ));
 
-      /** @var array<int, array> $ufArray */
-      $ufArray = [];
+          $elementsArray = $elementsDbQuery->fetchAll();
 
-      if (!empty($elementIds)) {
-        \CIBlockElement::GetPropertyValuesArray($ufArray, $iblockId, array(
-          'ID' => $elementIds,
-          'IBLOCK_ID' => $iblockId,
-        ));
-      }
+          $elementIds = [];
+          foreach ($elementsArray as $element) {
+            $elementIds[] = (int)$element['ID'];
+          }
 
-      foreach ($elementsArray as $element) {
-        $elements[] = Bitrix::IbElementResponse($element, $ufArray[$element['ID']] ?? []);
-      }
-    }
+          /** @var array<int, array> $ufArray */
+          $ufArray = [];
 
-    // Формирование и очистка результирующего массива от системных ключей
-    $result = array_diff_key(
-      array_merge(
-        [
-          'id' => (int) $section['ID'],
-          'image' => Image::getThumbs($section['PICTURE']) ?: null,
-        ],
-        $sectionProps,
-        [
-          'elements' => $elements
-        ]
-      ),
-      [
-        'PICTURE' => true,
-        'ID' => true,
-        'CODE' => true
-      ]
+          if (!empty($elementIds)) {
+            \CIBlockElement::GetPropertyValuesArray($ufArray, $iblockId, array(
+              'ID' => $elementIds,
+              'IBLOCK_ID' => $iblockId,
+            ));
+          }
+
+          foreach ($elementsArray as $element) {
+            $elements[] = Bitrix::IbElementResponse($element, $ufArray[$element['ID']] ?? []);
+          }
+        }
+
+        // Формирование и очистка результирующего массива от системных ключей
+        return array_diff_key(
+          array_merge(
+            [
+              'id' => (int) $section['ID'],
+              'image' => Image::getThumbs($section['PICTURE']) ?: null,
+            ],
+            $sectionProps,
+            [
+              'elements' => $elements
+            ]
+          ),
+          [
+            'PICTURE' => true,
+            'ID' => true,
+            'CODE' => true
+          ]
+        );
+      },
+      tags: $cacheTags,
     );
-
-    return $result;
   }
 }
