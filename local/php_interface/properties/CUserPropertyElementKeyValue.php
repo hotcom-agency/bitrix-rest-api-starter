@@ -1,13 +1,9 @@
 <?php
 
-namespace Hotcom\CustomProperties;
-
 /**
  * Кастомное свойство инфоблока для реализации структуры "Ключ - значение"
- * 
- * @package Hotcom\CustomProperties
- */
-class ElementKeyValue
+*/
+class CUserPropertyElementKeyValue
 {
   /**
    * Получение описания кастомного типа свойства для регистрации в Битриксе

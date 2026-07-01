@@ -3,18 +3,25 @@
 use Bitrix\Main\EventManager;
 
 /**
+ * Подключение файлов с классами кастомных свойств
+ */
+require_once __DIR__ . '/../properties/CUserPropertyElementBoolean.php';
+require_once __DIR__ . '/../properties/CUserPropertyElementKeyValue.php';
+require_once __DIR__ . '/../properties/CUserPropertySectionHtmlType.php';
+
+/**
  * Регистрация кастомных свойств элементов инфоблока
  */
 EventManager::getInstance()->addEventHandler(
   "iblock", 
   "OnIBlockPropertyBuildList", 
-  ['Hotcom\CustomProperties\ElementBoolean', 'GetUserTypeDescription']
+  ['CUserPropertyElementBoolean', 'GetUserTypeDescription']
 );
 
 EventManager::getInstance()->addEventHandler(
   "iblock", 
   "OnIBlockPropertyBuildList", 
-  ['Hotcom\CustomProperties\ElementKeyValue', 'GetUserTypeDescription']
+  ['CUserPropertyElementKeyValue', 'GetUserTypeDescription']
 );
 
 /**
@@ -23,5 +30,5 @@ EventManager::getInstance()->addEventHandler(
 EventManager::getInstance()->addEventHandler(
   "main", 
   "OnUserTypeBuildList", 
-  ['Hotcom\CustomProperties\SectionHtmlType', 'GetUserTypeDescription']
+  ['CUserPropertySectionHtmlType', 'GetUserTypeDescription']
 );

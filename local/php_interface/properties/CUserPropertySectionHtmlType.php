@@ -1,13 +1,9 @@
 <?php
 
-namespace Hotcom\CustomProperties;
-
 /**
  * Кастомное пользовательское свойство (UFX) для вывода HTML-редактора у разделов инфоблока
- * 
- * @package Hotcom\CustomProperties
  */
-class SectionHtmlType
+class CUserPropertySectionHtmlType
 {
   /**
    * Получение описания кастомного типа свойства для регистрации в Битриксе

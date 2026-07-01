@@ -1,13 +1,9 @@
 <?php
 
-namespace Hotcom\CustomProperties;
-
 /**
  * Кастомное свойство инфоблока для реализации логики "Да / Нет" через чекбокс
- * 
- * @package Hotcom\CustomProperties
  */
-class ElementBoolean
+class CUserPropertyElementBoolean
 {
   /**
    * Получение описания кастомного типа свойства для регистрации в Битриксе
