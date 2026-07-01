@@ -32,6 +32,7 @@ local/php_interface/events_debug.log
 .env.local
 /local/php_interface/dbconn.php
 /local/php_interface/.settings.php
+/local/php_interface/.settings_extra.php
 
 /docker/mailpit/data/*
 !/docker/mailpit/data/.gitkeep

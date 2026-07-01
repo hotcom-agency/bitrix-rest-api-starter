@@ -44,13 +44,24 @@ fi
 
 # Copy .settings.php from template if missing
 echo -e "${BLUE}Checking .settings.php...${NC}"
-if [ -f "bitrix/.settings.php.template" ] && [ ! -f "bitrix/.settings.php" ]; then
-  cp bitrix/.settings.php.template bitrix/.settings.php
+if [ -f "config/.settings.php.template" ] && [ ! -f "bitrix/.settings.php" ]; then
+  cp config/.settings.php.template bitrix/.settings.php
   echo -e "${LIGHT_BLUE} - Copied .settings.php from template${NC}"
-elif [ ! -f "bitrix/.settings.php" ]; then
-  echo -e "${YELLOW} - bitrix/.settings.php not found, skipping.${NC}"
+elif [ ! -f "config/.settings.php.template" ]; then
+  echo -e "${YELLOW} - config/.settings.php.template not found, skipping.${NC}"
 else
-  echo -e "${LIGHT_BLUE} - The settings are ready.${NC}"
+  echo -e "${LIGHT_BLUE} - The .settings.php are ready.${NC}"
+fi
+
+# Copy .settings_extra.php from template if missing
+echo -e "${BLUE}Checking .settings_extra.php...${NC}"
+if [ -f "config/.settings_extra.php.example" ] && [ ! -f "local/php_interface/.settings_extra.php" ]; then
+  cp config/.settings_extra.php.example local/php_interface/.settings_extra.php
+  echo -e "${LIGHT_BLUE} - Copied .settings_extra.php from template${NC}"
+elif [ ! -f "config/.settings_extra.php.example" ]; then
+  echo -e "${YELLOW} - config/.settings_extra.php.template not found, skipping.${NC}"
+else
+  echo -e "${LIGHT_BLUE} - The .settings_extra.php are ready.${NC}"
 fi
 
 # Fix directory permissions

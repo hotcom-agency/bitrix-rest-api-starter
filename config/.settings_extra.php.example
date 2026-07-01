@@ -1,0 +1,26 @@
+<?php
+$isDevelopmentMode = getenv('MODE') === 'DEVELOPMENT' || ($_ENV['MODE'] ?? '') === 'DEVELOPMENT';
+
+return [
+  // Конфигурация модуля защиты структуры
+  'hotcom_iblock_restrictions' => [
+    'value' => [
+      'restrict_all' => true,
+      'restricted_masks' => [
+        // '/^page/',
+      ],
+      'allowed_masks' => [
+        // '/^page/',
+      ],
+    ],
+    'readonly' => false,
+  ],
+
+  // Конфигурация кэширования API
+  'hotcom_api_cache' => [
+    'value' => [
+      'enabled' => $isDevelopmentMode ? false : true,
+    ],
+    'readonly' => false,
+  ],
+];

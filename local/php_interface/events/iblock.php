@@ -2,6 +2,7 @@
 
 use Bitrix\Iblock\ElementTable;
 use Bitrix\Main\EventManager;
+use Bitrix\Main\Config\Configuration;
 use Bitrix\Main\Page\Asset;
 use Bitrix\Iblock\IblockTable;
 use Bitrix\Iblock\SectionTable;
@@ -12,28 +13,31 @@ use Bitrix\Main\Application;
 $eventManager = EventManager::getInstance();
 
 /**
+ * Получение конфигурации ограничений инфоблоков из ядра Bitrix D7.
+ * Ищет ключ 'iblock_restrictions' в файле .settings_extra.php
+ * @var array
+ */
+$restrictionsConfig = Configuration::getInstance()->get('hotcom_iblock_restrictions') ?? [];
+
+/**
  * Глобальный флаг блокировки: 
  * true — запретить для всех, кроме Белого списка, 
  * false — запрет только по Черному списку
  * @var bool 
  */
-$restrictAll = true;
+$restrictAll = (bool)($restrictionsConfig['restrict_all'] ?? true);
 
 /**
  * Черный список: инфоблоки, которые заблокированы всегда
  * @var array<int, string>
  */
-$restrictedIblockMasks = [
-  // '/^page/',
-];
+$restrictedIblockMasks = (array)($restrictionsConfig['restricted_masks'] ?? []);
 
 /**
  * Белый список:  инфоблоки, в которых разрешено управление разделами
  * @var array<int, string>
  */
-$allowedIblockMasks = [
-  // '/^page/',
-];
+$allowedIblockMasks = (array)($restrictionsConfig['allowed_masks'] ?? []);
 
 /**
  * Проверяет, соответствует ли код маске

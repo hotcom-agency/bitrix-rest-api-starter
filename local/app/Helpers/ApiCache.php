@@ -1,7 +1,9 @@
 <?php
+
 namespace Hotcom\Helpers;
 
 use Bitrix\Main\Application;
+use Bitrix\Main\Config\Configuration;
 use Bitrix\Main\Data\Cache;
 use Bitrix\Main\Data\TaggedCache;
 
@@ -18,14 +20,18 @@ class ApiCache
 
   private Cache $cache;
   private TaggedCache $taggedCache;
+  private bool $isEnabled;
 
   /**
    * Инициализация базовых компонентов кэширования Битрикса
    */
   public function __construct()
   {
+    $config = Configuration::getInstance()->get('hotcom_api_cache');
+
     $this->cache = Application::getInstance()->getCache();
     $this->taggedCache = Application::getInstance()->getTaggedCache();
+    $this->isEnabled = (bool)($config['enabled'] ?? true);
   }
 
   /**
@@ -40,6 +46,10 @@ class ApiCache
    */
   public function get(string $key, callable $callback, array $tags = [], int $ttl = 3600): mixed
   {
+    if (!$this->isEnabled) {
+      return $callback();
+    }
+
     $cacheKey = self::PREFIX . md5($key);
 
     // Попытка чтения данных из кэша
@@ -100,6 +110,10 @@ class ApiCache
    */
   public function set(string $key, $data, array $tags = [], int $ttl = 7200): bool
   {
+    if (!$this->isEnabled) {
+      return false;
+    }
+
     $cacheKey = self::PREFIX . md5($key);
 
     if ($this->cache->startDataCache($ttl, $cacheKey, self::CACHE_DIR)) {

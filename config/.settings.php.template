@@ -1,8 +1,9 @@
 <?php
 $docRoot = $_SERVER['DOCUMENT_ROOT'] ?? dirname(__FILE__) . '/..';
+$extraSettingsPath = $docRoot . '/local/php_interface/.settings_extra.php';
 $isDevelopmentMode = getenv('MODE') === 'DEVELOPMENT' || ($_ENV['MODE'] ?? '') === 'DEVELOPMENT';
 
-return [
+$settings = [
   'utf_mode' => [
     'value' => true,
     'readonly' => true,
@@ -91,3 +92,12 @@ return [
     'readonly' => false,
   ]
 ];
+
+if (file_exists($extraSettingsPath)) {
+  $extraSettings = include($extraSettingsPath);
+  if (is_array($extraSettings)) {
+   $settings = array_replace_recursive($settings, $extraSettings);
+  }
+}
+
+return $settings;

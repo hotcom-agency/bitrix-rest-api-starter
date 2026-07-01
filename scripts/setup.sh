@@ -33,3 +33,7 @@ fi
 if [ -f config/dbconn.php.template ] && [ ! -f bitrix/php_interface/dbconn.php ]; then
     cp config/dbconn.php.template bitrix/php_interface/dbconn.php
 fi
+
+if [ -f config/.settings_extra.php.example ] && [ ! -f local/php_interface/.settings_extra.php]; then
+    cp config/.settings_extra.php.example local/php_interface/.settings_extra.php
+fi
