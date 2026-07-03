@@ -15,11 +15,19 @@ if [ -n "${SMTP_HOST}" ] && [ -n "${SMTP_EMAIL}" ] && [ -f /etc/msmtprc.template
     chmod 644 /etc/msmtprc
 fi
 
-for dir in cache managed_cache stack_cache compiled; do
+CONTAINER_USER_ID=$(id -u www-data)
+
+for dir in cache managed_cache stack_cache compiled updates modules php_interface; do
     mkdir -p "/var/www/html/bitrix/$dir"
 done
 mkdir -p /var/www/html/upload /var/www/html/local/logs
-chown -R 33:33 /var/www/html/bitrix /var/www/html/upload /var/www/html/local
+
+chown ${CONTAINER_USER_ID}:${CONTAINER_USER_ID} /var/www/html/bitrix /var/www/html/upload
+
+if [ ! -d /var/www/html/bitrix/modules ]; then
+    chown -R ${CONTAINER_USER_ID}:${CONTAINER_USER_ID} /var/www/html/bitrix 2>/dev/null || true
+fi
+
 umask 0022
 
 exec "$@"

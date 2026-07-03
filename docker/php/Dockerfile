@@ -22,6 +22,9 @@ RUN apk add --no-cache --virtual .build-deps \
 FROM php:${PHP_VERSION}-fpm-alpine
 ARG PHP_VERSION
 
+ARG USER_ID=82
+ARG GROUP_ID=82
+
 RUN apk add --no-cache \
     bash \
     zlib libjpeg-turbo libpng libwebp freetype \
@@ -31,7 +34,14 @@ RUN apk add --no-cache \
     mariadb-client \
     pngquant \
     imagemagick \
-&& rm -rf /var/cache/apk/*
+    shadow \
+&& rm -rf /var/www/html/* /var/cache/apk/*
+
+RUN if [ "${USER_ID}" != "82" ]; then \
+    deluser www-data && \
+    addgroup -g ${GROUP_ID} www-data && \
+    adduser -u ${USER_ID} -D -S -G www-data www-data; \
+fi
 
 COPY --from=build-stage /usr/local/lib/php/extensions/ /usr/local/lib/php/extensions/
 COPY --from=build-stage /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/

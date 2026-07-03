@@ -1,39 +1,32 @@
 #!/usr/bin/env bash
 set -e
 
-# Цветовые коды ANSI
 NC='\033[0m'
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
+LIGHT_BLUE='\033[38;5;117m'
 
-echo -e "${BLUE}Preparing directories and permissions...${NC}"
+echo -e "${BLUE}Подготовка директорий и разрешений..${NC}"
 
-if [ ! -f .env ];  then
-    echo -e "${RED}.env not exists${NC}"
+if [ ! -f .env ] && [ ! -f ../.env ]; then
+    echo -e "${RED}.env не существует${NC}"
     exit 1;
 fi
 
-mkdir -p upload local/logs docker/database/data backups local/migrations config bitrix/php_interface
+mkdir -p upload local/logs docker/database/data backups local/migrations config local/php_interface
 
-if [ "$(uname)" = "Linux" ]; then
-    chown -R 33:33 upload local/logs docker/database/data >/dev/null 2>&1 || true
+if [ "$(uname)" != "Darwin" ]; then
+    chmod -R u+rwX,go+rX,go-w upload local/logs docker/database/data backups 2>/dev/null || true
 fi
 
-chmod -R 775 upload local/logs >/dev/null 2>&1 || true
-chmod -R 755 docker/database/data local/migrations config backups >/dev/null 2>&1 || true
+echo -e "${LIGHT_BLUE} - Разрешения для директорий установлены.${NC}"
 
-echo -e "${BLUE}Configuring environment and settings files...${NC}"
-
-if [ -f config/.settings.php.template ] && [ ! -f bitrix/.settings.php ]; then
-    cp config/.settings.php.template bitrix/.settings.php
-fi
-
-if [ -f config/dbconn.php.template ] && [ ! -f bitrix/php_interface/dbconn.php ]; then
-    cp config/dbconn.php.template bitrix/php_interface/dbconn.php
-fi
+echo -e "${BLUE}Настройка дополнительных файлов конфигурации на Mac..${NC}"
 
 if [ -f config/.settings_extra.php.example ] && [ ! -f local/php_interface/.settings_extra.php ]; then
     cp config/.settings_extra.php.example local/php_interface/.settings_extra.php
 fi
+
+echo -e "${LIGHT_BLUE} - Локальные файлы настроены.${NC}"

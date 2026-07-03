@@ -8,10 +8,10 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 LIGHT_BLUE='\033[38;5;117m'
 
-echo -e "${YELLOW}⏳ Starting post-installation configuration${NC}"
+echo -e "${YELLOW}⏳ Начинаем конфигурацию Bitrix после установки${NC}"
 
-# Remove installation and temporary files
-echo -e "${BLUE}Removing installation and temporary files...${NC}"
+# Удаляем установочные и временные файлы
+echo -e "${BLUE}Удаление установочных и временных файлов..${NC}"
 INSTALL_FILES=(
   bitrixsetup.php
   restore.php
@@ -30,50 +30,43 @@ for f in "${INSTALL_FILES[@]}"; do
   fi
 done
 
-# Copy index.php from template
+# Копируем index.php из шаблона
 if [ -f "config/index.php.template" ]; then
   if [ ! -f "index.php" ]; then
     cp config/index.php.template index.php
     echo -e "${LIGHT_BLUE} - config/index.php.template -> index.php${NC}"
   else
-    echo -e "${LIGHT_BLUE} - index.php already exists, skipping copy.${NC}"
+    echo -e "${LIGHT_BLUE} - index.php уже существует, пропускаем копирование.${NC}"
   fi
 else
-  echo -e "${YELLOW} - config/index.php.template not found, skipping.${NC}"
+  echo -e "${YELLOW} - config/index.php.template не найден, пропускаем.${NC}"
 fi
 
-# Copy .settings.php from template if missing
-echo -e "${BLUE}Checking .settings.php...${NC}"
-if [ -f "config/.settings.php.template" ] && [ ! -f "bitrix/.settings.php" ]; then
-  cp config/.settings.php.template bitrix/.settings.php
-  echo -e "${LIGHT_BLUE} - Copied .settings.php from template${NC}"
-elif [ ! -f "config/.settings.php.template" ]; then
-  echo -e "${YELLOW} - config/.settings.php.template not found, skipping.${NC}"
-else
-  echo -e "${LIGHT_BLUE} - The .settings.php are ready.${NC}"
-fi
+# Копируем .settings.php из шаблона внутри именованного тома если отсутствует
+echo -e "${BLUE}Проверяем .settings.php..${NC}"
+docker compose exec -T php sh -c '
+  if [ -f "/var/www/html/config/.settings.php.template" ] && [ ! -f "/var/www/html/bitrix/.settings.php" ]; then
+    cp /var/www/html/config/.settings.php.template /var/www/html/bitrix/.settings.php
+    chown 82:82 /var/www/html/bitrix/.settings.php
+    echo -e "\033[38;5;117m - Скопирован .settings.php из шаблона\033[0m"
+  else
+    echo -e "\033[38;5;117m - Файл .settings.php готов.\033[0m"
+  fi
+'
 
-# Copy .settings_extra.php from template if missing
-echo -e "${BLUE}Checking .settings_extra.php...${NC}"
+# Копируем .settings_extra.php из шаблона если отсутствует
+echo -e "${BLUE}Проверяем .settings_extra.php..${NC}"
 if [ -f "config/.settings_extra.php.example" ] && [ ! -f "local/php_interface/.settings_extra.php" ]; then
   cp config/.settings_extra.php.example local/php_interface/.settings_extra.php
-  echo -e "${LIGHT_BLUE} - Copied .settings_extra.php from template${NC}"
+  echo -e "${LIGHT_BLUE} - Скопирован .settings_extra.php из шаблона${NC}"
 elif [ ! -f "config/.settings_extra.php.example" ]; then
-  echo -e "${YELLOW} - config/.settings_extra.php.template not found, skipping.${NC}"
+  echo -e "${YELLOW} - config/.settings_extra.php.template не найден, пропускаем.${NC}"
 else
-  echo -e "${LIGHT_BLUE} - The .settings_extra.php are ready.${NC}"
+  echo -e "${LIGHT_BLUE} - Файл .settings_extra.php готов.${NC}"
 fi
 
-# Fix directory permissions
-echo -e "${BLUE}Fixing directory permissions...${NC}"
-if docker compose exec -T php sh -c "chown -R 33:33 /var/www/html/bitrix/cache /var/www/html/bitrix/managed_cache /var/www/html/bitrix/stack_cache /var/www/html/bitrix/compiled /var/www/html/upload /var/www/html/local/logs 2>/dev/null"; then
-  echo -e "${LIGHT_BLUE} - Directory permissions are configured.${NC}"
-else
-  echo -e "${RED} - Could not set some permissions.${NC}"
-fi
-
-# Verify Redis connectivity
-echo -e "${BLUE}Verifying Redis connectivity...${NC}"
+# Проверяем подключение к Redis
+echo -e "${BLUE}Проверка подключения к Redis..${NC}"
 REDIS_CHECK=$(docker compose exec -T php php << 'PHPEOF'
 <?php
 $host = getenv('REDIS_HOST') ?: ($_ENV['REDIS_HOST'] ?? 'redis');
@@ -113,145 +106,139 @@ PHPEOF
 
 case "$REDIS_CHECK" in
   "OK")
-    echo -e "${LIGHT_BLUE} - Redis is ready and operational.${NC}"
+    echo -e "${LIGHT_BLUE} - Redis готов к работе и функционирует.${NC}"
     ;;
   "EXT_MISSING")
-    echo -e "${RED} - PHP redis extension is not loaded.${NC}"
-    echo -e "${RED} - Add to Dockerfile: RUN pecl install redis && docker-php-ext-enable redis${NC}"
+    echo -e "${RED} - Расширение PHP redis не загружено.${NC}"
+    echo -e "${RED} - Добавьте в Dockerfile: RUN pecl install redis && docker-php-ext-enable redis${NC}"
     exit 1
     ;;
   "CONN_FAILED")
-    echo -e "${RED} - Cannot connect to Redis server.${NC}"
-    echo -e "${RED} - Check if redis container is running and verify REDIS_HOST/PORT in .env.${NC}"
+    echo -e "${RED} - Не удается подключиться к серверу Redis.${NC}"
+    echo -e "${RED} - Проверьте, запущен ли контейнер redis и убедитесь в правильности REDIS_HOST/PORT в .env.${NC}"
     exit 1
     ;;
   "WRITE_FAILED" | "READ_FAILED")
-    echo -e "${RED} - Redis read/write operation failed.${NC}"
-    echo -e "${RED} - Check redis logs: docker compose logs redis${NC}"
+    echo -e "${RED} - Операция чтения/записи Redis завершилась ошибкой.${NC}"
+    echo -e "${RED} - Проверьте логи redis: docker compose logs redis${NC}"
     exit 1
     ;;
   *)
-    echo -e "${RED} - Unknown Redis check error. Output: '$REDIS_CHECK'${NC}"
+    echo -e "${RED} - Неизвестная ошибка проверки Redis. Вывод: '$REDIS_CHECK'${NC}"
     exit 1
     ;;
 esac
 
-# Optimize Composer autoloader and verify output
-echo -e "${BLUE}Optimizing Composer autoloader...${NC}"
+# Оптимизация автозагрузчика Composer и проверка вывода
+echo -e "${BLUE}Оптимизация автозагрузчика Composer..${NC}"
 if docker compose exec -T php composer dump-autoload --optimize --quiet 2>/dev/null; then
   if docker compose exec -T php test -f vendor/autoload.php 2>/dev/null; then
-    echo -e "${LIGHT_BLUE} - Composer autoloader optimized and verified.${NC}"
+    echo -e "${LIGHT_BLUE} - Автозагрузчик Composer оптимизирован и проверен.${NC}"
   else
-    echo -e "${YELLOW} - Autoloader command succeeded, but vendor/autoload.php is missing.${NC}"
+    echo -e "${YELLOW} - Команда автозагрузчика выполнена успешно, но vendor/autoload.php отсутствует.${NC}"
   fi
 else
-  echo -e "${RED} - Composer optimization skipped or failed.${NC}"
+  echo -e "${RED} - Оптимизация Composer пропущена или завершилась ошибкой.${NC}"
 fi
 
-# Graceful reload PHP-FPM
+# Плавный перезапуск PHP-FPM
 docker compose exec -T php kill -USR2 1 >/dev/null 2>&1 || true
 for i in $(seq 1 10); do
   docker compose exec -T php php -r "exit(0);" 2>/dev/null && break
   sleep 1
 done
 
-# Uninstall and remove demo solution bitrix.sitecorporate
-echo -e "${BLUE}Uninstalling and removing demo solution bitrix.sitecorporate...${NC}"
+# Деинсталляция и удаление демонстрационного решения bitrix.sitecorporate
+echo -e "${BLUE}Деинсталляция и удаление демонстрационного решения bitrix.sitecorporate..${NC}"
 docker compose exec -T php php -d display_errors=0 << 'PHPEOF'
 <?php
-$NC = "\033[0m";
-$LB = "\033[38;5;117m";
-
 $_SERVER['DOCUMENT_ROOT'] = '/var/www/html';
 define('NOT_CHECK_PERMISSIONS', true);
 define('NO_KEEP_STATISTIC', true);
 define('BX_NO_ACCELERATOR_RESET', true);
 
-require_once($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_before.php');
+if (file_exists($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_before.php')) {
+    require_once($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_before.php');
 
-use Bitrix\Main\ModuleManager;
-use Bitrix\Main\Application;
+    $moduleId = 'bitrix.sitecorporate';
+    $LB = "\033[38;5;117m";
+    $NC = "\033[0m";
 
-$moduleId = 'bitrix.sitecorporate';
-
-if (ModuleManager::isModuleInstalled($moduleId)) {
-    $connection = Application::getConnection();
-    $demoTables = ['b_site_corporate'];
-    
-    foreach ($demoTables as $table) {
-        if ($connection->isTableExists($table)) {
-            $connection->dropTable($table);
+    if (\Bitrix\Main\ModuleManager::isModuleInstalled($moduleId)) {
+        $connection = \Bitrix\Main\Application::getConnection();
+        $demoTables = ['b_site_corporate'];
+        
+        foreach ($demoTables as $table) {
+            if ($connection->isTableExists($table)) {
+                $connection->dropTable($table);
+            }
         }
-    }
 
-    ModuleManager::unRegisterModule($moduleId);
-    
-    $modulePath = $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/' . $moduleId;
-    if (is_dir($modulePath)) {
-        exec("rm -rf " . escapeshellarg($modulePath));
-    }
+        \Bitrix\Main\ModuleManager::unRegisterModule($moduleId);
+        
+        $modulePath = $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/' . $moduleId;
+        if (is_dir($modulePath)) {
+            exec("rm -rf " . escapeshellarg($modulePath));
+        }
 
-    echo "{$LB} - Module bitrix.sitecorporate un-registered and removed cleanly via CLI.{$NC}\n";
-} else {
-    echo "{$LB} - Module bitrix.sitecorporate is not installed. Nothing to delete.{$NC}\n";
+        echo "${LB} - Модуль bitrix.sitecorporate успешно деинсталлирован и удален через CLI.${NC}\n";
+    } else {
+        echo "${LB} - Модуль bitrix.sitecorporate не установлен. Удалять нечего.${NC}\n";
+    }
 }
 PHPEOF
 
-# Automatically install and activate sprint.migration module
-echo -e "${BLUE}Installing and activating sprint.migration module...${NC}"
+# Автоматическая установка и активация модуля sprint.migration
+echo -e "${BLUE}Установка и активация модуля sprint.migration..${NC}"
 docker compose exec -T php php -d display_errors=0 << 'PHPEOF'
 <?php
-$NC = "\033[0m";
-$LB = "\033[38;5;117m";
-$GREEN = "\033[0;32m";
-$RED = "\033[0;31m";
-
 $_SERVER['DOCUMENT_ROOT'] = '/var/www/html';
 define('NOT_CHECK_PERMISSIONS', true);
 define('NO_KEEP_STATISTIC', true);
 define('BX_NO_ACCELERATOR_RESET', true);
 
-require_once($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_before.php');
+if (file_exists($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_before.php')) {
+    require_once($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_before.php');
 
-use Bitrix\Main\Loader;
-use Bitrix\Main\ModuleManager;
+    $moduleId = 'sprint.migration';
+    $LB = "\033[38;5;117m";
+    $NC = "\033[0m";
+    $RED = "\033[0;31m";
 
-$moduleId = 'sprint.migration';
+    if (!\Bitrix\Main\ModuleManager::isModuleInstalled($moduleId)) {
+        $installFile = $_SERVER['DOCUMENT_ROOT'] . '/local/modules/' . $moduleId . '/install/index.php';
+        if (!file_exists($installFile)) {
+            $installFile = $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/' . $moduleId . '/install/index.php';
+        }
 
-if (!ModuleManager::isModuleInstalled($moduleId)) {
-    $installFile = $_SERVER['DOCUMENT_ROOT'] . '/local/modules/' . $moduleId . '/install/index.php';
-    if (!file_exists($installFile)) {
-        $installFile = $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/' . $moduleId . '/install/index.php';
-    }
-
-    if (file_exists($installFile)) {
-        include_once($installFile);
-        $class = str_replace('.', '_', $moduleId);
-        if (class_exists($class)) {
-            $moduleObject = new $class();
-            $moduleObject->DoInstall();
-            echo "{$LB} - Module sprint.migration activated successfully.{$NC}\n";
+        if (file_exists($installFile)) {
+            include_once($installFile);
+            $class = str_replace('.', '_', $moduleId);
+            if (class_exists($class)) {
+                $moduleObject = new $class();
+                $moduleObject->DoInstall();
+                echo "${LB} - Модуль sprint.migration успешно активирован.${NC}\n";
+            } else {
+                echo "${RED} - Класс установщика $class не найден.${NC}\n";
+            }
         } else {
-            echo "{$RED} - Installer class $class not found.{$NC}\n";
+            echo "${RED} - Файл установщика модуля не найден на диске.${NC}\n";
         }
     } else {
-        echo "{$RED} - Module installer file not found on disk.{$NC}\n";
+        echo "${LB} - Модуль sprint.migration уже установлен.${NC}\n";
     }
-} else {
-    echo "{$LB} - Module sprint.migration is already installed.{$NC}\n";
 }
 PHPEOF
 
-# Run all pending project migrations
-echo -e "${BLUE}Running pending migrations...${NC}"
-docker compose exec -T php sh -c "
-  cd /var/www/html && \
-  ( php local/modules/sprint.migration/tools/migrate.php up --quiet >/dev/null 2>&1 )
-"
-if [ $? -eq 0 ]; then
-  echo -e "${LIGHT_BLUE} - Migrations applied successfully.${NC}"
-else
-  echo -e "${YELLOW} - Migration runner not found or already up-to-date.${NC}"
-fi
+# Запуск всех ожидающих миграций проекта
+echo -e "${BLUE}Выполнение ожидающих миграций..${NC}"
+docker compose exec -T php sh -c '
+  if [ -f "/var/www/html/local/modules/sprint.migration/tools/migrate.php" ]; then
+    php /var/www/html/local/modules/sprint.migration/tools/migrate.php up --quiet >/dev/null 2>&1
+    echo -e "\033[38;5;117m - Миграции успешно применены.\033[0m"
+  else
+    echo -e "\033[38;5;117m - Средство выполнения миграций не найдено или все миграции уже применены.\033[0m"
+  fi
+'
 
-echo -e "${GREEN}Post-installation configuration completed successfully!${NC}"
+echo -e "${GREEN}Конфигурация после установки успешно завершена!${NC}"
