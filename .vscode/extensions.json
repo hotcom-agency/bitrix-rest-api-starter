@@ -2,7 +2,6 @@
 
   "recommendations": [
     "neilbrayfield.php-docblocker",
-    "mehedidracula.php-namespace-resolver",
     "sanderronde.phpstan-vscode",
     "bmewburn.vscode-intelephense-client",
     "mrmlnc.vscode-php-extension-pack",
