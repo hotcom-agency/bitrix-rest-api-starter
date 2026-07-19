@@ -30,11 +30,16 @@ class CreateUserGroupContentManager20250526203231 extends Migration
       return false;
     }
 
-    $this->setModuleRights('main', $groupId, 'R');
+    $this->setModuleAdminTask('main', $groupId, 'P');
     $this->setFileAccessRights($groupId, 'R');
     $this->setMedialibCollectionRights($groupId, 'medialib_full', 0);
+    if (Loader::includeModule('security')) {
+      $this->setModuleAdminTask('security', $groupId, 'F');
+    } else {
+      $this->outWarning('Модуль "security" (Проактивная защита) не установлен');
+    }
 
-    $this->outSuccess("Группа content-managers (ID: {$groupId}) создана.");
+    $this->outSuccess("Группа content-managers (ID: {$groupId}) создана и права установлены.");
   }
 
   public function down()
@@ -43,21 +48,28 @@ class CreateUserGroupContentManager20250526203231 extends Migration
   }
 
   /**
-   * Права модуля через D7 API (идемпотентно)
+   * Права модуля через стандартный API Битрикса
    */
   protected function setModuleRights(string $moduleId, int $groupId, string $rightCode): void
   {
     if ($moduleId !== 'main' && !Loader::includeModule($moduleId)) return;
 
     $key = "G{$groupId}";
-    $raw = \Bitrix\Main\Config\Option::get($moduleId, 'module_rights', '');
-    $rights = $raw ? (@unserialize($raw, ['allowed_classes' => false]) ?: []) : [];
+    $raw = \Bitrix\Main\Config\Option::get($moduleId, 'GROUP_RIGHTS', '');
 
-    if (($rights[$key] ?? '') === $rightCode) return;
+    $rights = [];
+    if ($raw !== '') {
+      $unserialized = @unserialize($raw, ['allowed_classes' => false]);
+      if (is_array($unserialized)) {
+        $rights = $unserialized;
+      }
+    }
 
     $rights[$key] = $rightCode;
-    \Bitrix\Main\Config\Option::set($moduleId, 'module_rights', serialize($rights));
-    $this->out("→ Права '{$rightCode}' на {$moduleId} для группы {$groupId}");
+
+    \Bitrix\Main\Config\Option::set($moduleId, 'GROUP_RIGHTS', serialize($rights));
+
+    $this->out("→ Права '{$rightCode}' на {$moduleId} для группы {$groupId} установлены");
   }
 
   /**
@@ -110,5 +122,52 @@ class CreateUserGroupContentManager20250526203231 extends Migration
         ");
 
     $this->out("→ Права '{$taskName}' (ID: {$task['ID']}) для группы {$groupId} установлены");
+  }
+
+  /**
+   * Права к административным частям модуля через стандартный API Битрикса
+   */
+  protected function setModuleAdminTask(string $moduleId, int $groupId, string $taskLetter): void
+  {
+    if (!Loader::includeModule('main')) return;
+
+    $currentTasks = \CGroup::GetTasks($groupId);
+
+    /** @var \Bitrix\Main\DB\Connection $connection */
+    $connection = Application::getConnection();
+    $sqlHelper = $connection->getSqlHelper();
+
+    if ($moduleId === 'main' && $taskLetter === 'R') {
+      $task = $connection->query("
+            SELECT ID, NAME, LETTER FROM b_task 
+            WHERE MODULE_ID = 'main' 
+              AND SYS = 'Y' 
+              AND NAME = 'main_view_all_settings'
+            LIMIT 1
+        ")->fetch();
+    } else {
+      $task = $connection->query("
+            SELECT ID, NAME, LETTER FROM b_task 
+            WHERE MODULE_ID = '" . $sqlHelper->forSql($moduleId) . "' 
+              AND SYS = 'Y' 
+              AND LETTER = '" . $sqlHelper->forSql($taskLetter) . "'
+            LIMIT 1
+        ")->fetch();
+    }
+
+    if (!$task) {
+      $this->outWarning("Задача '{$taskLetter}' для модуля '{$moduleId}' не найдена");
+      return;
+    }
+
+    $taskId = (int)$task['ID'];
+
+    if (!in_array($taskId, $currentTasks)) {
+      $currentTasks[] = $taskId;
+      \CGroup::SetTasks($groupId, $currentTasks);
+      $this->out("→ Задача '{$taskLetter}' (ID: {$taskId}, NAME: {$task['NAME']}) для модуля '{$moduleId}' добавлена группе {$groupId}");
+    } else {
+      $this->out("→ Задача '{$taskLetter}' (ID: {$taskId}) уже есть у группы {$groupId}");
+    }
   }
 }
