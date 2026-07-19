@@ -1,4 +1,4 @@
-.PHONY: up down up-dev down-dev migrate generate-types composer-install setup-init setup-docker setup-local setup-finish
+.PHONY: up down up-dev down-dev migrate generate-types composer-install backup-create backup-restore setup-init setup-docker setup-local setup-finish
 
 up:
 	docker compose up -d --build --force-recreate
@@ -20,6 +20,14 @@ generate-types:
 
 composer-install:
 	docker compose exec php /bin/sh -c "composer install"
+
+backup-create:
+	mkdir -p backups
+	docker compose exec -T -e DB_HOST -e DB_USER -e DB_PASSWORD -e DB_NAME php sh -c 'cd /var/www/html && mariadb-dump --ssl=0 -h $$DB_HOST -u $$DB_USER -p$$DB_PASSWORD $$DB_NAME > dump.sql && tar --exclude="upload/tmp" -czf /var/www/html/backups/backup_$$(date +%Y-%m-%d_%H%M%S).tar.gz upload dump.sql && rm -f dump.sql && find /var/www/html/backups -name "*.tar.gz" -mtime +10 -type f -delete'
+
+backup-restore:
+	@if [ -z "$(FILE)" ]; then echo "Ошибка: Укажите файл бэкапа. Пример: make backup-restore FILE=имя_файла.tar.gz"; exit 1; fi
+	docker compose exec -T -e DB_HOST -e DB_USER -e DB_PASSWORD -e DB_NAME php sh -c 'cd /var/www/html && tar -xzf /var/www/html/backups/$(FILE) && mariadb -h $$DB_HOST -u $$DB_USER -p$$DB_PASSWORD $$DB_NAME < dump.sql && rm -f dump.sql'
 
 setup-init:
 	@bash scripts/init.sh
