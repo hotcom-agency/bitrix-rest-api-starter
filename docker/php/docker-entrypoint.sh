@@ -22,7 +22,10 @@ for dir in cache managed_cache stack_cache compiled updates modules php_interfac
 done
 mkdir -p /var/www/html/upload /var/www/html/local/logs
 
-chown ${CONTAINER_USER_ID}:${CONTAINER_USER_ID} /var/www/html/bitrix /var/www/html/upload
+chown ${CONTAINER_USER_ID}:${CONTAINER_USER_ID} /var/www/html /var/www/html/bitrix /var/www/html/upload
+
+find /var/www/html -maxdepth 1 -type f -exec chmod 664 {} \; 2>/dev/null || true
+find /var/www/html -maxdepth 1 -type f -exec chown ${CONTAINER_USER_ID}:${CONTAINER_GROUP_ID} {} \; 2>/dev/null || true
 
 if [ ! -d /var/www/html/bitrix/modules ]; then
     chown -R ${CONTAINER_USER_ID}:${CONTAINER_USER_ID} /var/www/html/bitrix 2>/dev/null || true
