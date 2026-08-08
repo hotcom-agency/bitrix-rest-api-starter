@@ -94,6 +94,24 @@ abstract class AbstractService
   }
 
   /**
+   * Получение массива значений для множественного локализованного поля.
+   * 
+   * @param EntityObject $element Объект элемента
+   * @param string $baseMethod Базовый метод геттера
+   * @return array
+   */
+  protected function getLocalizedMultipleValue(EntityObject $element, string $baseMethod): array
+  {
+    $value = $this->getLocalizedValue($element, $baseMethod);
+
+    if (is_array($value)) {
+      return $value;
+    }
+
+    return $value !== null ? [$value] : [];
+  }
+
+  /**
    * Получение массива базовых тегов кеша инфоблока
    * 
    * @param array $additionalTags Дополнительные теги кеша

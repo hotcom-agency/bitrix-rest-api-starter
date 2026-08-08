@@ -150,8 +150,17 @@ class Localization
     $cleanPostfix = !empty($postfix) ? ucfirst(strtolower(ltrim($postfix, '_'))) : '';
     $method = $baseMethod . $cleanPostfix;
 
-    return method_exists($element, $method) || method_exists($element, '__call')
-      ? $element->$method()?->getValue()
-      : null;
+    if (!method_exists($element, $method) && !method_exists($element, '__call')) {
+      return null;
+    }
+
+    $result = $element->$method();
+
+    if ($result instanceof \Bitrix\Main\ORM\Objectify\Collection) {
+      /** @phpstan-ignore-next-line */
+      return $result->getValueList();
+    }
+
+    return $result?->getValue();
   }
 }
