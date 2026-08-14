@@ -24,22 +24,22 @@ INSTALL_FILES=(
 )
 
 for f in "${INSTALL_FILES[@]}"; do
-  if [ -f "$f" ]; then
-    rm -f "$f"
-    echo -e "${LIGHT_BLUE} - $f${NC}"
+  if [ -f "src/$f" ]; then
+    rm -f "src/$f"
+    echo -e "${LIGHT_BLUE} - src/$f${NC}"
   fi
 done
 
 # Копируем index.php из шаблона
-if [ -f "config/index.php.template" ]; then
-  if [ ! -f "index.php" ]; then
-    cp config/index.php.template index.php
-    echo -e "${LIGHT_BLUE} - config/index.php.template -> index.php${NC}"
+if [ -f "src/config/index.php.template" ]; then
+  if [ ! -f "src/index.php" ]; then
+    cp src/config/index.php.template src/index.php
+    echo -e "${LIGHT_BLUE} - src/config/index.php.template -> src/index.php${NC}"
   else
-    echo -e "${LIGHT_BLUE} - index.php уже существует, пропускаем копирование.${NC}"
+    echo -e "${LIGHT_BLUE} - src/index.php уже существует, пропускаем копирование.${NC}"
   fi
 else
-  echo -e "${YELLOW} - config/index.php.template не найден, пропускаем.${NC}"
+  echo -e "${YELLOW} - src/config/index.php.template не найден, пропускаем.${NC}"
 fi
 
 # Копируем .settings.php из шаблона внутри именованного тома если отсутствует
@@ -56,11 +56,11 @@ docker compose exec -T php sh -c '
 
 # Копируем .settings_extra.php из шаблона если отсутствует
 echo -e "${BLUE}Проверяем .settings_extra.php..${NC}"
-if [ -f "config/.settings_extra.php.example" ] && [ ! -f "local/php_interface/.settings_extra.php" ]; then
-  cp config/.settings_extra.php.example local/php_interface/.settings_extra.php
+if [ -f "src/config/.settings_extra.php.example" ] && [ ! -f "src/local/php_interface/.settings_extra.php" ]; then
+  cp src/config/.settings_extra.php.example src/local/php_interface/.settings_extra.php
   echo -e "${LIGHT_BLUE} - Скопирован .settings_extra.php из шаблона${NC}"
-elif [ ! -f "config/.settings_extra.php.example" ]; then
-  echo -e "${YELLOW} - config/.settings_extra.php.template не найден, пропускаем.${NC}"
+elif [ ! -f "src/config/.settings_extra.php.example" ]; then
+  echo -e "${YELLOW} - src/config/.settings_extra.php.template не найден, пропускаем.${NC}"
 else
   echo -e "${LIGHT_BLUE} - Файл .settings_extra.php готов.${NC}"
 fi

@@ -15,11 +15,11 @@ echo -e "⏳ ${YELLOW}Начинаем настройку docker для bitrix${
 bash "$(dirname "$0")/setup.sh"
 
 if [ -z "$1" ]; then
-    if [ -f config/nginx/default.conf.example ] && [ ! -f docker/nginx/default.conf ]; then
-        cp config/nginx/default.conf.example docker/nginx/default.conf
+    if [ -f src/config/nginx/default.conf.example ] && [ ! -f docker/nginx/default.conf ]; then
+        cp src/config/nginx/default.conf.example docker/nginx/default.conf
     fi
-    if [ -f config/nginx/default.dev.conf.example ] && [ ! -f docker/nginx/default.dev.conf ]; then
-        cp config/nginx/default.dev.conf.example docker/nginx/default.dev.conf
+    if [ -f src/config/nginx/default.dev.conf.example ] && [ ! -f docker/nginx/default.dev.conf ]; then
+        cp src/config/nginx/default.dev.conf.example docker/nginx/default.dev.conf
     fi
 fi
 
@@ -37,10 +37,10 @@ echo -e "${LIGHT_BLUE} - База данных Redis успешно очищен
 echo -e "${BLUE}Синхронизация шаблонов конфигурации в именованный том..${NC}"
 docker compose -f "$DOCKER_DIR/docker-compose.yml" --project-directory "$DOCKER_DIR" exec -T php mkdir -p /var/www/html/bitrix/php_interface
 
-if [ -f config/.settings.php.template ]; then
+if [ -f src/config/.settings.php.template ]; then
     docker compose -f "$DOCKER_DIR/docker-compose.yml" --project-directory "$DOCKER_DIR" exec -T php sh -c "cp -n /var/www/html/config/.settings.php.template /var/www/html/bitrix/.settings.php || true"
 fi
-if [ -f config/dbconn.php.template ]; then
+if [ -f src/config/dbconn.php.template ]; then
     docker compose -f "$DOCKER_DIR/docker-compose.yml" --project-directory "$DOCKER_DIR" exec -T php sh -c "cp -n /var/www/html/config/dbconn.php.template /var/www/html/bitrix/php_interface/dbconn.php || true"
 fi
 echo -e "${LIGHT_BLUE} - Синхронизация завершена.${NC}"

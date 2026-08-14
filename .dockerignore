@@ -3,26 +3,25 @@
 .env.*.local
 
 # ─── Uploaded files & Runtime logs ───
-/upload/
-!/upload/.gitkeep
-/local/logs/*.log
-!/local/logs/.gitkeep
-/local/cache/
-/local/tmp/
-/local/stack_cache/
-/local/managed_cache/
+/src/upload/
+!/src/upload/.gitkeep
+/src/local/logs/*.log
+!/src/local/logs/.gitkeep
+/src/local/cache/
+/src/local/tmp/
+/src/local/stack_cache/
+/src/local/managed_cache/
 /backups/
 
 # ─── Setup files (root only) ───
 bitrixsetup.php
 restore.php
-bitrixsetup.php
 readme.html
-/bitrix/
-!/bitrix/.gitkeep
+/src/bitrix/
+!/src/bitrix/.gitkeep
 
 # ─── Dependencies ───
-/vendor/
+/src/vendor/
 
 # ─── Docker & Database Runtime Data ───
 /docker/database/data/
@@ -37,20 +36,20 @@ readme.html
 *.log
 
 # ─── Bitrix specific ───
-/bitrix/cache/
-/bitrix/managed_cache/
-/bitrix/stack_cache/
-/bitrix/images/
-/bitrix/js/
-/bitrix/tmp/
-/bitrix/tools/cron_events.log
-/bitrix/settings*.php
-/bitrix/.settings*
-/bitrix/backup/
-/bitrix/web.config
-/bitrix/php_interface/dbconn.php
-/bitrix/php_interface/dbconn_old.php
-/bitrix/modules/main/classes/mysql/agent.php
+/src/bitrix/cache/
+/src/bitrix/managed_cache/
+/src/bitrix/stack_cache/
+/src/bitrix/images/
+/src/bitrix/js/
+/src/bitrix/tmp/
+/src/bitrix/tools/cron_events.log
+/src/bitrix/settings*.php
+/src/bitrix/.settings*
+/src/bitrix/backup/
+/src/bitrix/web.config
+/src/bitrix/php_interface/dbconn.php
+/src/bitrix/php_interface/dbconn_old.php
+/src/bitrix/modules/main/classes/mysql/agent.php
 
 # ─── PHP & Composer ───
 composer.lock

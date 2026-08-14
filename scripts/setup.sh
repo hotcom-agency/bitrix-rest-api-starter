@@ -15,18 +15,18 @@ if [ ! -f .env ] && [ ! -f ../.env ]; then
     exit 1;
 fi
 
-mkdir -p upload local/logs docker/database/data backups local/migrations config local/php_interface
+mkdir -p src/upload src/local/logs docker/database/data backups src/local/migrations src/config src/local/php_interface
 
 if [ "$(uname)" != "Darwin" ]; then
-    chmod -R u+rwX,go+rX,go-w upload local/logs docker/database/data backups 2>/dev/null || true
+    chmod -R u+rwX,go+rX,go-w src/upload src/local/logs docker/database/data backups 2>/dev/null || true
 fi
 
 echo -e "${LIGHT_BLUE} - Разрешения для директорий установлены.${NC}"
 
 echo -e "${BLUE}Настройка дополнительных файлов конфигурации на Mac..${NC}"
 
-if [ -f config/.settings_extra.php.example ] && [ ! -f local/php_interface/.settings_extra.php ]; then
-    cp config/.settings_extra.php.example local/php_interface/.settings_extra.php
+if [ -f src/config/.settings_extra.php.example ] && [ ! -f src/local/php_interface/.settings_extra.php ]; then
+    cp src/config/.settings_extra.php.example src/local/php_interface/.settings_extra.php
 fi
 
 echo -e "${LIGHT_BLUE} - Локальные файлы настроены.${NC}"

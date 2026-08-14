@@ -6,24 +6,28 @@
 
 ```
 .
-├── .devcontainer/              # Конфигурация VS Code Dev Containers для Mac
+├── src/                        # Веб-рут проекта (docroot контейнеров)
+│   ├── bitrix/                 # Ядро Bitrix (не в git, кроме .gitkeep)
+│   ├── local/                  # Приложение (бизнес-логика, роутинг, события)
+│   │   ├── app/                # Исходный код ядра приложения (PSR-4: Hotcom\\)
+│   │   ├── migrations/         # Скрипты миграций проекта (sprint.migration)
+│   │   ├── php_interface/      # Хуки, события Bitrix и файлы .settings_extra.php
+│   │   └── routes/             # Маршруты REST API
+│   ├── config/                 # Шаблоны конфигурационных файлов (.settings.php, dbconn.php)
+│   ├── upload/                 # Загрузки и медиафайлы
+│   └── composer.json, phpstan.neon
 ├── docker/                     # Конфигурации Docker-контейнеров (Nginx, PHP, MariaDB, Redis)
 ├── scripts/                    # Скрипты автоматизации и пост-установки
-├── config/                     # Шаблоны конфигурационных файлов (.settings.php, dbconn.php)
-├── local/                      # Приложение (бизнес-логика, роутинг, события)
-│   ├── app/                    # Исходный код ядра приложения (PSR-4: Hotcom\\)
-│   ├── migrations/             # Скрипты миграций проекта (sprint.migration)
-│   ├── php_interface/          # Хуки, события Bitrix и файлы .settings_extra.php
-│   └── routes/                 # Маршруты REST API
-├── bitrix/                     # Ядро Bitrix (Изолировано в Named Volume на macOS)
-├── upload/                     # Загрузки и медиафайлы
-├── composer.json               # Зависимости и dev-инструменты (PHPStan)
 ├── docker-compose.yml          # Базовая конфигурация Docker-приложения
 ├── docker-compose.dev.yml      # Переопределение для локальной разработки (Xdebug, Mailpit)
 ├── docker-compose.prod.yml     # Переопределение для Production (чистый Linux Ubuntu)
-├── phpstan.neon                # Конфигурация статического анализатора кода
-└── Makefile                    # Команды управления проектом
+├── Makefile                    # Команды управления проектом
+└── .git/                       # git-метаданные (в контейнеры не монтируется)
 ```
+
+> Веб-рут проекта — `src/`. Контейнеры монтируют `./src:/var/www/html`, поэтому `.git` и
+> инфраструктура (docker/, scripts/, compose) в контейнеры не попадают. Всё, что в этом
+> документе обозначено как `local/...`, `config/...`, `upload/...`, — находится внутри `src/`.
 
 ## Установка (Docker)
 

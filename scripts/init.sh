@@ -23,12 +23,12 @@ prepare_volume_permissions() {
 }
 
 if [ "$opt" = "1" ]; then
-  if [ ! -f bitrixsetup.php ]; then
-    if [ -f config/bitrixsetup.php ]; then
-      cp config/bitrixsetup.php ./bitrixsetup.php
-      echo -e "${BLUE}Скопировано из config/${NC}"
+  if [ ! -f src/bitrixsetup.php ]; then
+    if [ -f src/config/bitrixsetup.php ]; then
+      cp src/config/bitrixsetup.php src/bitrixsetup.php
+      echo -e "${BLUE}Скопировано из src/config/${NC}"
     else
-      echo -e "${RED}Ошибка: config/bitrixsetup.php не найден${NC}"
+      echo -e "${RED}Ошибка: src/config/bitrixsetup.php не найден${NC}"
       exit 1
     fi
   fi
@@ -36,12 +36,12 @@ if [ "$opt" = "1" ]; then
   echo -e "${YELLOW}Откройте: {{host}}/bitrixsetup.php${NC}"
 
 elif [ "$opt" = "2" ]; then
-  if [ ! -f restore.php ]; then
-    if [ -f config/restore.php ]; then
-      cp config/restore.php ./restore.php
-      echo -e "${BLUE}Скопировано из config/${NC}"
+  if [ ! -f src/restore.php ]; then
+    if [ -f src/config/restore.php ]; then
+      cp src/config/restore.php src/restore.php
+      echo -e "${BLUE}Скопировано из src/config/${NC}"
     else
-      echo -e "${RED}Ошибка: config/restore.php не найден${NC}"
+      echo -e "${RED}Ошибка: src/config/restore.php не найден${NC}"
       exit 1
     fi
   fi
