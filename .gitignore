@@ -32,7 +32,7 @@ src/local/php_interface/events_debug.log
 .env.local
 /src/local/php_interface/dbconn.php
 /src/local/php_interface/.settings.php
-/src/local/php_interface/.settings_extra.php
+/src/local/php_interface/.settings_extra.local.php
 /src/bitrixsetup.php
 /src/restore.php
 

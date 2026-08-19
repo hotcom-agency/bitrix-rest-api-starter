@@ -49,6 +49,8 @@ parameters:
         - '#Call to static method .* on an unknown class CIBlockElement#'
         - '#unknown class CFileMan#'
         - '#Call to static method .* on an unknown class CFileMan#'
+        - '#Call to static method ShowMessage\(\) on an unknown class CAdminMessage#'
+        - '#Constant BX_ROOT not found#'
 
     reportUnmatchedIgnoredErrors: false
     treatPhpDocTypesAsCertain: false

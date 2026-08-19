@@ -25,19 +25,40 @@ $restrictionsConfig = Configuration::getInstance()->get('hotcom_iblock_restricti
  * false — запрет только по Черному списку
  * @var bool 
  */
-$restrictAll = (bool)($restrictionsConfig['restrict_all'] ?? true);
+$restrictAll = (bool)($restrictionsConfig['section_restrict_all'] ?? true);
 
 /**
  * Черный список: инфоблоки, которые заблокированы всегда
  * @var array<int, string>
  */
-$restrictedIblockMasks = (array)($restrictionsConfig['restricted_masks'] ?? []);
+$restrictedIblockMasks = (array)($restrictionsConfig['section_restricted_masks'] ?? []);
 
 /**
  * Белый список:  инфоблоки, в которых разрешено управление разделами
  * @var array<int, string>
  */
-$allowedIblockMasks = (array)($restrictionsConfig['allowed_masks'] ?? []);
+$allowedIblockMasks = (array)($restrictionsConfig['section_allowed_masks'] ?? []);
+
+/**
+ * Глобальный флаг блокировки элементов:
+ * true — запретить управление элементами во всех инфоблоках,
+ * кроме Белого списка элементов,
+ * false — запрет элементов только по Черному списку элементов
+ * @var bool
+ */
+$elementRestrictAll = (bool)($restrictionsConfig['element_restrict_all'] ?? false);
+
+/**
+ * Черный список элементов: инфоблоки, в которых элементы заблокированы всегда
+ * @var array<int, string>
+ */
+$elementRestrictedMasks = (array)($restrictionsConfig['element_restricted_masks'] ?? []);
+
+/**
+ * Белый список элементов: инфоблоки, в которых разрешено управление элементами
+ * @var array<int, string>
+ */
+$elementAllowedMasks = (array)($restrictionsConfig['element_allowed_masks'] ?? []);
 
 /**
  * Проверяет, соответствует ли код маске
@@ -57,6 +78,22 @@ function isCodeMatchMasks(?string $code, array $masks): bool
 }
 
 /**
+ * Проверяет, заблокировано ли управление элементами для инфоблока.
+ * Отдельное правило: глобальный флаг + черный/белый списки элементов.
+ * @param string $checkString
+ * @param array $elementAllowedMasks
+ * @param array $elementRestrictedMasks
+ * @param bool $elementRestrictAll
+ * @return bool
+ */
+function isElementProtected(string $checkString, array $elementAllowedMasks, array $elementRestrictedMasks, bool $elementRestrictAll): bool
+{
+  $isAllowed = isCodeMatchMasks($checkString, $elementAllowedMasks);
+  $isRestricted = isCodeMatchMasks($checkString, $elementRestrictedMasks);
+  return !$isAllowed && ($isRestricted || $elementRestrictAll);
+}
+
+/**
  * Проверяет, выполняется ли контекст в миграции
  * @return bool
  */
@@ -69,6 +106,20 @@ function isMigrationContext(): bool
     if (isset($step['class']) && str_starts_with($step['class'], 'Sprint\Migration')) return true;
   }
   return false;
+}
+
+/**
+ * Проверяет, выполняется ли запрос из административной панели Bitrix.
+ * Блокировки структуры применяются только к админ-панели: API и миграции не затрагиваются.
+ * @return bool
+ */
+function isAdminPanelContext(): bool
+{
+  if (defined('ADMIN_SECTION') && ADMIN_SECTION === true) {
+    return true;
+  }
+  $scriptName = (string)($_SERVER['SCRIPT_NAME'] ?? '');
+  return str_contains($scriptName, '/bitrix/admin/');
 }
 
 /**
@@ -139,6 +190,44 @@ $eventManager->addEventHandler('main', 'OnPageStart', function (): void {
       die('<h1>403 Forbidden</h1><p>Сброс или изменение внешнего вида форм детальных карточек заблокирован архитектурой проекта.</p>');
     }
   }
+});
+
+/**
+ * Блокировка формы создания элемента для инфоблоков с запрещёнными элементами.
+ * Выполняется в OnProlog — после init_admin.php, поэтому доступен полный prolog админки.
+ */
+$eventManager->addEventHandler('main', 'OnProlog', function () use ($elementAllowedMasks, $elementRestrictedMasks, $elementRestrictAll): void {
+  if (isMigrationContext()) return;
+  if (!isAdminPanelContext()) return;
+
+  $request = Application::getInstance()->getContext()->getRequest();
+  $pageSelf = (string)($_SERVER['SCRIPT_NAME'] ?? '');
+
+  if (!str_contains($pageSelf, 'iblock_element_edit.php')) return;
+
+  $elementId = (int)$request->get('ID');
+  if ($elementId > 0) return;
+
+  $iblockId = (int)$request->get('IBLOCK_ID');
+  if ($iblockId <= 0) return;
+
+  $rawCode = getIblockCodeById($iblockId);
+  $iblockCode = $rawCode ? strtolower(trim($rawCode)) : '';
+  $checkString = ($iblockCode !== '') ? $iblockCode : (string)$iblockId;
+
+  if (!isElementProtected($checkString, $elementAllowedMasks, $elementRestrictedMasks, $elementRestrictAll)) return;
+
+  global $APPLICATION, $USER, $adminPage, $adminMenu, $adminChain, $adminSidePanelHelper, $DB, $LANG;
+
+  http_response_code(403);
+  require $_SERVER['DOCUMENT_ROOT'] . BX_ROOT . '/modules/main/include/prolog_admin_after.php';
+  CAdminMessage::ShowMessage([
+    'MESSAGE' => 'Доступ запрещён',
+    'DETAILS' => 'Создание элементов в данном инфоблоке заблокировано архитектурой проекта.',
+    'TYPE' => 'ERROR',
+  ]);
+  require $_SERVER['DOCUMENT_ROOT'] . BX_ROOT . '/modules/main/include/epilog_admin.php';
+  die();
 });
 
 /**
@@ -303,6 +392,7 @@ foreach (['OnBeforeIBlockPropertyAdd', 'OnBeforeIBlockPropertyUpdate', 'OnBefore
 foreach (['OnBeforeIBlockSectionAdd', 'OnBeforeIBlockSectionUpdate', 'OnBeforeIBlockSectionDelete'] as $eventName) {
   $eventManager->addEventHandler('iblock', $eventName, function (&$arFields) use ($eventName, $restrictedIblockMasks, $allowedIblockMasks, $restrictAll): bool {
     if (isMigrationContext()) return true;
+    if (!isAdminPanelContext()) return true;
     if (!Loader::includeModule('iblock')) return true;
     global $APPLICATION;
 
@@ -385,6 +475,56 @@ foreach (['OnBeforeIBlockSectionAdd', 'OnBeforeIBlockSectionUpdate', 'OnBeforeIB
 }
 
 /**
+ * События для ограничения управления элементами инфоблоков.
+ * Отдельное правило, независимое от ограничений секций: используются собственные
+ * ключи конфигурации element_restrict_all / element_restricted_masks / element_allowed_masks.
+ * Коллекции контента и API-заявки (POST /requests) не затрагиваются.
+ */
+foreach (['OnBeforeIBlockElementAdd', 'OnBeforeIBlockElementUpdate', 'OnBeforeIBlockElementDelete'] as $eventName) {
+  $eventManager->addEventHandler('iblock', $eventName, function (&$arFields) use ($eventName, $elementRestrictedMasks, $elementAllowedMasks, $elementRestrictAll): bool {
+    if (isMigrationContext()) return true;
+    if (!isAdminPanelContext()) return true;
+    if (!Loader::includeModule('iblock')) return true;
+    global $APPLICATION;
+
+    $iblockId = 0;
+
+    if ($eventName === 'OnBeforeIBlockElementDelete' && !is_array($arFields)) {
+      $elementId = (int)$arFields;
+      if ($elementId > 0) {
+        $e = ElementTable::getRow(['select' => ['IBLOCK_ID'], 'filter' => ['=ID' => $elementId]]);
+        $iblockId = $e ? (int)$e['IBLOCK_ID'] : 0;
+      }
+    } elseif (is_array($arFields)) {
+      if (isset($arFields['IBLOCK_ID'])) {
+        $iblockId = (int)$arFields['IBLOCK_ID'];
+      } elseif (isset($arFields['ID'])) {
+        $e = ElementTable::getRow(['select' => ['IBLOCK_ID'], 'filter' => ['=ID' => (int)$arFields['ID']]]);
+        $iblockId = $e ? (int)$e['IBLOCK_ID'] : 0;
+      }
+    }
+
+    if ($iblockId <= 0) return true;
+
+    $rawCode = getIblockCodeById($iblockId);
+    $iblockCode = $rawCode ? strtolower(trim($rawCode)) : '';
+    $checkString = ($iblockCode !== '') ? $iblockCode : (string)$iblockId;
+
+    $isProtected = isElementProtected($checkString, $elementAllowedMasks, $elementRestrictedMasks, $elementRestrictAll);
+    if (!$isProtected) return true;
+
+    $action = match ($eventName) {
+      'OnBeforeIBlockElementAdd' => 'Создание',
+      'OnBeforeIBlockElementUpdate' => 'Изменение',
+      'OnBeforeIBlockElementDelete' => 'Удаление'
+    };
+    $iblockLabel = ($rawCode !== null && $rawCode !== '') ? $rawCode : (string)$iblockId;
+    $APPLICATION->ThrowException("$action элементов в инфоблоке \"$iblockLabel\" запрещено архитектурой проекта.");
+    return false;
+  });
+}
+
+/**
  * События для скрытия элементов интерфейса в админке
  */
 $adminVisualEvents = [
@@ -395,7 +535,7 @@ $adminVisualEvents = [
 foreach ($adminVisualEvents as $visualEvent) {
   [$module, $eventName] = explode(':', $visualEvent);
 
-  $eventManager->addEventHandler($module, $eventName, function (&$param) use ($restrictedIblockMasks, $allowedIblockMasks, $restrictAll): void {
+  $eventManager->addEventHandler($module, $eventName, function (&$param) use ($restrictedIblockMasks, $allowedIblockMasks, $restrictAll, $elementAllowedMasks, $elementRestrictedMasks, $elementRestrictAll): void {
     if (isMigrationContext()) return;
 
     $request = Application::getInstance()->getContext()->getRequest();
@@ -447,6 +587,27 @@ foreach ($adminVisualEvents as $visualEvent) {
 
     $shouldHide = !$isAllowed && ($isRestricted || $restrictAll);
 
+    $elementIsProtected = isElementProtected($checkString, $elementAllowedMasks, $elementRestrictedMasks, $elementRestrictAll);
+
+    if ($elementIsProtected) {
+      Asset::getInstance()->addString('<style>
+        .ui-toolbar-right-buttons a[href*="iblock_element_edit.php"],
+        .adm-detail-toolbar-right a[href*="iblock_element_edit.php"],
+        .menu-popup a[href*="iblock_element_edit.php"],
+        .menu-popup a[href*="action=delete"],
+        .menu-popup .menu-popup-item[onclick*="action=delete"],
+        .bx-core-popup-menu-item[href*="iblock_element_edit.php"],
+        .bx-core-popup-menu-item[href*="action=delete"] {
+          display: none !important;
+        }
+        .ui-toolbar-right-buttons a[href*="iblock_element_edit.php"]+button,
+        .adm-detail-toolbar-right a[href*="iblock_element_edit.php"]+button {
+          border-left: inherit !important;
+          border-radius: var(--ui-btn-radius);
+        }
+        </style>');
+    }
+
     if ($shouldHide) {
       Asset::getInstance()->addString('<style>
         .ui-toolbar-right-buttons a[href*="iblock_section_edit.php"]{
@@ -485,3 +646,76 @@ foreach ($adminVisualEvents as $visualEvent) {
     }
   });
 }
+
+/**
+ * Серверная фильтрация контекстного меню админ-панели.
+ * Для инфоблоков с заблокированными элементами удаляет пункты «Добавить элемент»
+ * и «Удалить элемент», а кнопку-контейнер — если в ней не осталось активных пунктов.
+ */
+$eventManager->addEventHandler('main', 'OnAdminContextMenuShow', function (&$items, &$additionalItems) use ($elementAllowedMasks, $elementRestrictedMasks, $elementRestrictAll): void {
+  if (isMigrationContext()) return;
+  if (!isAdminPanelContext()) return;
+  if (!Loader::includeModule('iblock')) return;
+
+  $request = Application::getInstance()->getContext()->getRequest();
+  $currentIblockId = (int)$request->get('IBLOCK_ID');
+  $pageSelf = (string)($_SERVER['SCRIPT_NAME'] ?? '');
+
+  if ($currentIblockId <= 0) {
+    $elementId = (int)$request->get('ID');
+    $findSection = (int)$request->get('find_section_section');
+
+    if ($findSection > 0) {
+      $section = SectionTable::getRow(['select' => ['IBLOCK_ID'], 'filter' => ['=ID' => $findSection]]);
+      $currentIblockId = $section ? (int)$section['IBLOCK_ID'] : 0;
+    } elseif ($elementId > 0) {
+      if (str_contains($pageSelf, 'iblock_section_edit')) {
+        $entity = SectionTable::getRow(['select' => ['IBLOCK_ID'], 'filter' => ['=ID' => $elementId]]);
+      } else {
+        $entity = ElementTable::getRow(['select' => ['IBLOCK_ID'], 'filter' => ['=ID' => $elementId]]);
+      }
+      $currentIblockId = $entity ? (int)$entity['IBLOCK_ID'] : 0;
+    }
+  }
+
+  if ($currentIblockId <= 0) return;
+
+  $rawCode = getIblockCodeById($currentIblockId);
+  $iblockCode = $rawCode ? strtolower(trim($rawCode)) : '';
+  $checkString = ($iblockCode !== '') ? $iblockCode : (string)$currentIblockId;
+
+  if (!isElementProtected($checkString, $elementAllowedMasks, $elementRestrictedMasks, $elementRestrictAll)) return;
+
+  $filterMenu = function (array $menu) use (&$filterMenu): array {
+    $result = [];
+    foreach ($menu as $item) {
+      if (isset($item['MENU']) && is_array($item['MENU'])) {
+        $item['MENU'] = $filterMenu($item['MENU']);
+        if (empty($item['MENU'])) {
+          continue;
+        }
+      }
+
+      $link = (string)($item['LINK'] ?? '');
+      $onclick = (string)($item['ONCLICK'] ?? '');
+      $target = $link !== '' ? $link : $onclick;
+
+      $isAddElement = str_contains($target, 'iblock_element_edit.php') && !str_contains($target, 'action=copy');
+      $isDeleteElement = str_contains($target, 'action=delete');
+
+      if ($isAddElement || $isDeleteElement) {
+        continue;
+      }
+
+      $result[] = $item;
+    }
+    return $result;
+  };
+
+  if (is_array($items)) {
+    $items = $filterMenu($items);
+  }
+  if (is_array($additionalItems)) {
+    $additionalItems = $filterMenu($additionalItems);
+  }
+});
