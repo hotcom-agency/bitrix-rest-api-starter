@@ -38,10 +38,10 @@ echo -e "${BLUE}Синхронизация шаблонов конфигурац
 docker compose -f "$DOCKER_DIR/docker-compose.yml" --project-directory "$DOCKER_DIR" exec -T php mkdir -p /var/www/html/bitrix/php_interface
 
 if [ -f src/config/.settings.php.template ]; then
-    docker compose -f "$DOCKER_DIR/docker-compose.yml" --project-directory "$DOCKER_DIR" exec -T php sh -c "cp -n /var/www/html/config/.settings.php.template /var/www/html/bitrix/.settings.php || true"
+    docker compose -f "$DOCKER_DIR/docker-compose.yml" --project-directory "$DOCKER_DIR" exec -T php sh -c "cp -n /var/www/html/config/.settings.php.template /var/www/html/bitrix/.settings.php || true; chown 82:82 /var/www/html/bitrix/.settings.php"
 fi
 if [ -f src/config/dbconn.php.template ]; then
-    docker compose -f "$DOCKER_DIR/docker-compose.yml" --project-directory "$DOCKER_DIR" exec -T php sh -c "cp -n /var/www/html/config/dbconn.php.template /var/www/html/bitrix/php_interface/dbconn.php || true"
+    docker compose -f "$DOCKER_DIR/docker-compose.yml" --project-directory "$DOCKER_DIR" exec -T php sh -c "cp -n /var/www/html/config/dbconn.php.template /var/www/html/bitrix/php_interface/dbconn.php || true; chown 82:82 /var/www/html/bitrix/php_interface/dbconn.php"
 fi
 echo -e "${LIGHT_BLUE} - Синхронизация завершена.${NC}"
 

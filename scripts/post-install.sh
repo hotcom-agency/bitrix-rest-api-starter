@@ -17,6 +17,8 @@ INSTALL_FILES=(
   restore.php
   readme.html
   index.php
+  404.php
+  .access.php
   install.config
   favicon.ico
   urlrewrite.php
@@ -30,17 +32,26 @@ for f in "${INSTALL_FILES[@]}"; do
   fi
 done
 
-# Копируем index.php из шаблона
-if [ -f "src/config/index.php.template" ]; then
-  if [ ! -f "src/index.php" ]; then
-    cp src/config/index.php.template src/index.php
-    echo -e "${LIGHT_BLUE} - src/config/index.php.template -> src/index.php${NC}"
+# Восстанавливаем корневые файлы webroot из шаблонов (мастер установки их перезаписывает)
+ROOT_TEMPLATES=(
+  index.php
+  404.php
+  error.php
+  .access.php
+)
+
+for f in "${ROOT_TEMPLATES[@]}"; do
+  if [ -f "src/config/$f.template" ]; then
+    if [ ! -f "src/$f" ]; then
+      cp "src/config/$f.template" "src/$f"
+      echo -e "${LIGHT_BLUE} - src/config/$f.template -> src/$f${NC}"
+    else
+      echo -e "${LIGHT_BLUE} - src/$f уже существует, пропускаем копирование.${NC}"
+    fi
   else
-    echo -e "${LIGHT_BLUE} - src/index.php уже существует, пропускаем копирование.${NC}"
+    echo -e "${YELLOW} - src/config/$f.template не найден, пропускаем.${NC}"
   fi
-else
-  echo -e "${YELLOW} - src/config/index.php.template не найден, пропускаем.${NC}"
-fi
+done
 
 # Копируем .settings.php из шаблона внутри именованного тома если отсутствует
 echo -e "${BLUE}Проверяем .settings.php..${NC}"
