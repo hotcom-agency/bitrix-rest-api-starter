@@ -17,12 +17,12 @@ services:
       PHP_IDE_CONFIG: "serverName=docker"
       MODE: "DEVELOPMENT"
       XDEBUG_SESSION: "1"
-      BITRIX_MAIL_EMAIL_FROM: "no-reply@mailpit.local"
-      BITRIX_MAIL_EMAIL_TO: 'to@mailpit.local'
-      BITRIX_MAIL_EMAIL_COPY: 'copy@mailpit.local'
+      BITRIX_MAIL_EMAIL_FROM: "no-reply@mailpit.test"
+      BITRIX_MAIL_EMAIL_TO: 'to@mailpit.test'
+      BITRIX_MAIL_EMAIL_COPY: 'copy@mailpit.test'
       SMTP_HOST: "mailpit"
       SMTP_PORT: "1025"
-      SMTP_EMAIL: "no-reply@mailpit.local"
+      SMTP_EMAIL: "no-reply@mailpit.test"
       SMTP_AUTH: "off"
       SMTP_TLS: "off"
       SMTP_TLS_STARTTLS: "off"
