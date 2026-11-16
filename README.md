@@ -269,6 +269,22 @@ local/
 
 - Миграция с базовым функционалом создаётся через административную панель **HC DTO Миграция** (рекомендуется) или с помощью команды `make migration-create`.
 
+```bash
+make migration-create N=Название D="Описание"  # создать миграцию из шаблона MigrationBuilder
+make migration-status                          # список миграций и их статусов
+make migration-up                              # применить новые миграции
+make migration-down                            # откатить последнюю миграцию
+```
+
+### Бэкапы и обслуживание
+
+```bash
+make shell                                      # shell в контейнере php
+make backup-create                              # дамп БД и upload в project/backups/
+make backup-restore FILE=backup_2026-11-16_120000.tar.gz
+make db-reset CONFIRM=yes                       # пересоздать базу: данные удаляются
+```
+
 ### Кэширование
 
 - Глобальное управление поведением кэш-слоя вынесено в изолированный файл конфигурации `local/php_interface/.settings_extra.php`.
