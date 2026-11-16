@@ -1,4 +1,4 @@
-.PHONY: up down up-dev down-dev migrate generate-types composer-install backup-create backup-restore setup-init setup-docker setup-local setup-finish
+.PHONY: up up-dev down down-dev migration-create migration-up migration-down migration-status generate-types composer-install shell backup-create backup-restore setup-init setup-docker setup-local setup-finish db-reset
 
 up:
 	docker compose up -d --build --force-recreate
@@ -12,14 +12,27 @@ up-dev:
 down-dev:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml down
 
-migrate-up:
-	docker compose exec php php local/modules/sprint.migration/tools/migrate.php config
+migration-create:
+	$(if $(and $(N),$(D)),,$(error Ошибка: укажите параметры N=ИмяМиграции и D="Описание"))
+	docker compose exec -T php php local/modules/sprint.migration/tools/migrate.php create --from=MigrationBuilder --name=$(N) --desc="$(D)"
+
+migration-up:
+	docker compose exec php php local/modules/sprint.migration/tools/migrate.php up
+
+migration-down:
+	docker compose exec php php local/modules/sprint.migration/tools/migrate.php down
+
+migration-status:
+	docker compose exec php php local/modules/sprint.migration/tools/migrate.php list
 
 generate-types:
 	docker compose exec php /bin/sh -c "php bitrix/bitrix.php orm:annotate -m all"
 
 composer-install:
 	docker compose exec php /bin/sh -c "composer install"
+
+shell:
+	docker compose exec php bash
 
 backup-create:
 	mkdir -p backups
@@ -31,7 +44,7 @@ backup-restore:
 
 setup-init:
 	@bash scripts/init.sh
-	
+
 setup-docker:
 	@chmod +x scripts/*.sh
 	@bash scripts/setup-docker.sh
@@ -43,3 +56,8 @@ setup-local:
 setup-finish:
 	@chmod +x scripts/*.sh
 	@bash scripts/post-install.sh
+
+db-reset:
+	@if [ "$(CONFIRM)" != "yes" ]; then echo "Ошибка: команда удаляет базу данных. Пример: make db-reset CONFIRM=yes"; exit 1; fi
+	docker compose exec -T database sh -c 'mariadb -u root -p"$$MARIADB_ROOT_PASSWORD" -e "DROP DATABASE IF EXISTS \`$$MARIADB_DATABASE\`; CREATE DATABASE \`$$MARIADB_DATABASE\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"'
+	docker compose restart php
